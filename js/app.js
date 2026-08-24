@@ -222,83 +222,86 @@ window.cloturerSession = async () => {
 // ==========================================
 
 // 1. Import Adhérents
-const inputCsvAdherents = document.getElementById('csv-adherents');
-if (inputCsvAdherents) {
-  inputCsvAdherents.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+window.lancerImportAdherents = () => {
+  const input = document.getElementById('csv-adherents');
+  const file = input ? input.files[0] : null;
 
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      delimiter: ";", // Délimiteur CSV classique en France
-      complete: async (results) => {
-        let ajouts = 0;
-        let ignores = 0;
-        const categoriesAutorisees = ["EDH", "U7", "U9", "U11"];
+  if (!file) {
+    alert("Veuillez d'abord sélectionner un fichier CSV d'adhérents.");
+    return;
+  }
 
-        for (const row of results.data) {
-          const cat = row["Catégorie"] ? row["Catégorie"].trim() : "";
-          
-          // Exclusion des catégories non éligibles au prêt
-          if (!categoriesAutorisees.includes(cat)) {
-            ignores++;
-            continue;
-          }
+  Papa.parse(file, {
+    header: true,
+    skipEmptyLines: true,
+    delimiter: ";",
+    complete: async (results) => {
+      let ajouts = 0;
+      let ignores = 0;
+      const categoriesAutorisees = ["EDH", "U7", "U9", "U11"];
 
-          await addDoc(collection(db, "adherents"), {
-            nom: (row["Nom"] || "").trim().toUpperCase(),
-            prenom: (row["Prénom"] || "").trim(),
-            date_naissance: row["Date Naissance"] || "",
-            categorie: cat,
-            taille_cm: parseInt(row["Taille (cm)"]) || null,
-            taille_main_inch: row["Taille Main(inch)"] || null,
-            pointure: parseInt(row["Pointure"]) || null,
-            statut_remise: "non_commence",
-            date_maj: serverTimestamp()
-          });
-          ajouts++;
+      for (const row of results.data) {
+        const cat = row["Catégorie"] ? row["Catégorie"].trim() : "";
+        
+        if (!categoriesAutorisees.includes(cat)) {
+          ignores++;
+          continue;
         }
-        alert(`Import adhérents terminé !\n- ${ajouts} adhérents ajoutés.\n- ${ignores} ignorés (catégorie > U11).`);
-        inputCsvAdherents.value = "";
+
+        await addDoc(collection(db, "adherents"), {
+          nom: (row["Nom"] || "").trim().toUpperCase(),
+          prenom: (row["Prénom"] || "").trim(),
+          date_naissance: row["Date Naissance"] || "",
+          categorie: cat,
+          taille_cm: parseInt(row["Taille (cm)"]) || null,
+          taille_main_inch: row["Taille Main(inch)"] || null,
+          pointure: parseInt(row["Pointure"]) || null,
+          statut_remise: "non_commence",
+          date_maj: serverTimestamp()
+        });
+        ajouts++;
       }
-    });
+      alert(`Import adhérents terminé !\n- ${ajouts} adhérents ajoutés.\n- ${ignores} ignorés (catégorie > U11).`);
+      input.value = "";
+    }
   });
-}
+};
 
-// 2. Import Inventaire Matériel
-const inputCsvEquipements = document.getElementById('csv-equipements');
-if (inputCsvEquipements) {
-  inputCsvEquipements.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+// 2. Import Matériel
+window.lancerImportEquipements = () => {
+  const input = document.getElementById('csv-equipements');
+  const file = input ? input.files[0] : null;
 
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      delimiter: ";",
-      complete: async (results) => {
-        let ajouts = 0;
+  if (!file) {
+    alert("Veuillez d'abord sélectionner un fichier CSV de matériel.");
+    return;
+  }
 
-        for (const row of results.data) {
-          if (!row["Type équipement"]) continue;
+  Papa.parse(file, {
+    header: true,
+    skipEmptyLines: true,
+    delimiter: ";",
+    complete: async (results) => {
+      let ajouts = 0;
 
-          await addDoc(collection(db, "equipements"), {
-            type_equipement: row["Type équipement"].trim(),
-            marque: (row["Marque"] || "").trim(),
-            modele: (row["Modèle"] || "").trim(),
-            taille: (row["Taille"] || "").trim(),
-            statut: "en_stock",
-            adherent_actuel_id: null
-          });
-          ajouts++;
-        }
-        alert(`Import matériel terminé !\n- ${ajouts} équipements ajoutés au stock.`);
-        inputCsvEquipements.value = "";
+      for (const row of results.data) {
+        if (!row["Type équipement"]) continue;
+
+        await addDoc(collection(db, "equipements"), {
+          type_equipement: row["Type équipement"].trim(),
+          marque: (row["Marque"] || "").trim(),
+          modele: (row["Modèle"] || "").trim(),
+          taille: (row["Taille"] || "").trim(),
+          statut: "en_stock",
+          adherent_actuel_id: null
+        });
+        ajouts++;
       }
-    });
+      alert(`Import matériel terminé !\n- ${ajouts} équipements ajoutés au stock.`);
+      input.value = "";
+    }
   });
-}
+};
 
 // ==========================================
 // EXPORTATION CSV
