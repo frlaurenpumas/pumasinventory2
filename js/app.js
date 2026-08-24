@@ -87,6 +87,7 @@ function chargerAdherentPourEdition(id, data) {
   document.getElementById('c1-categorie').value = data.categorie || '';
   
   document.getElementById('c1-taille-cm').value = data.taille_cm || '';
+  document.getElementById('c1-tour-tete-cm').value = data.tour_tete_cm || '';
   document.getElementById('c1-taille-main').value = data.taille_main_inch || '';
   document.getElementById('c1-pointure').value = data.pointure || '';
 
@@ -116,6 +117,7 @@ if (formC1) {
       date_naissance: document.getElementById('c1-dob').value,
       categorie: document.getElementById('c1-categorie').value,
       taille_cm: parseInt(document.getElementById('c1-taille-cm').value) || null,
+      tour_tete_cm: parseInt(document.getElementById('c1-tour-tete-cm').value) || null,
       taille_main_inch: document.getElementById('c1-taille-main').value || null,
       pointure: parseInt(document.getElementById('c1-pointure').value) || null,
       statut_remise: "en_attente_comptoir_2",
@@ -179,6 +181,7 @@ function chargerAdherent(id, data) {
   document.getElementById('c2-adh-infos').textContent = `Catégorie: ${data.categorie} | Né(e) le: ${data.date_naissance}`;
   
   document.getElementById('rep-taille').textContent = data.taille_cm || '-';
+  document.getElementById('rep-tete').textContent = data.tour_tete_cm || '-';
   document.getElementById('rep-main').textContent = data.taille_main_inch || '-';
   document.getElementById('rep-pointure').textContent = data.pointure || '-';
 
@@ -372,6 +375,7 @@ window.lancerImportAdherents = () => {
           date_naissance: normaliserDateISO(rawDate),
           categorie: cat,
           taille_cm: parseInt(row["Taille (cm)"] || row["Taille"]) || null,
+          tour_tete_cm: parseInt(row["Tour de tête (cm)"] || row["Tour de tete (cm)"] || row["Tour de tête"] || row["Tour de tete"]) || null,
           taille_main_inch: row["Taille Main(inch)"] || row["Taille Main"] || null,
           pointure: parseInt(row["Pointure"]) || null,
           statut_remise: "non_commence",
