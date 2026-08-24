@@ -185,24 +185,30 @@
 <section id="admin" class="hidden space-y-6">
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
     
-    <!-- IMPORTS -->
-    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
-      <h2 class="text-lg font-bold text-blue-900">📥 Importation des données (CSV)</h2>
-      
-      <!-- Import Adhérents -->
-      <div class="p-4 bg-slate-50 border rounded-lg space-y-2">
-        <h3 class="font-semibold text-sm">1. Importer les Adhérents</h3>
-        <p class="text-xs text-slate-500">Structure requise : <code>Nom;Prénom;Date Naissance;Catégorie;Taille (cm);Taille Main(inch);Pointure</code></p>
-        <input type="file" id="csv-adherents" accept=".csv" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-      </div>
+   <!-- IMPORTS -->
+<div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
+  <h2 class="text-lg font-bold text-blue-900">📥 Importation des données (CSV)</h2>
+  
+  <!-- Import Adhérents -->
+  <div class="p-4 bg-slate-50 border rounded-lg space-y-3">
+    <h3 class="font-semibold text-sm">1. Importer les Adhérents</h3>
+    <p class="text-xs text-slate-500">Structure : <code>Nom;Prénom;Date Naissance;Catégorie;Taille (cm);Taille Main(inch);Pointure</code></p>
+    <input type="file" id="csv-adherents" accept=".csv" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+    <button onclick="lancerImportAdherents()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg text-sm">
+      Importer le fichier adhérents
+    </button>
+  </div>
 
-      <!-- Import Matériel -->
-      <div class="p-4 bg-slate-50 border rounded-lg space-y-2">
-        <h3 class="font-semibold text-sm">2. Importer l'Inventaire Matériel</h3>
-        <p class="text-xs text-slate-500">Structure requise : <code>Type équipement;Marque;Modèle;Taille</code></p>
-        <input type="file" id="csv-equipements" accept=".csv" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-      </div>
-    </div>
+  <!-- Import Matériel -->
+  <div class="p-4 bg-slate-50 border rounded-lg space-y-3">
+    <h3 class="font-semibold text-sm">2. Importer l'Inventaire Matériel</h3>
+    <p class="text-xs text-slate-500">Structure : <code>Type équipement;Marque;Modèle;Taille</code></p>
+    <input type="file" id="csv-equipements" accept=".csv" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+    <button onclick="lancerImportEquipements()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg text-sm">
+      Importer le fichier matériel
+    </button>
+  </div>
+</div>
 
     <!-- EXPORTS -->
     <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
