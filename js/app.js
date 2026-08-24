@@ -411,6 +411,7 @@ window.lancerImportEquipements = () => {
           marque: (row["Marque"] || "").trim(),
           modele: (row["Modèle"] || "").trim(),
           taille: (row["Taille"] || "").trim(),
+          taille_enfant: (row["Taille enfant"] || "").trim(),
           statut: "en_stock",
           adherent_actuel_id: null
         });
