@@ -3,13 +3,84 @@ import { db, collection, addDoc, updateDoc, doc, serverTimestamp, query, where, 
 let currentAdherentId = null;
 
 // ==========================================
-// COMPTOIR 1 : ENREGISTREMENT & ENVOI
+// COMPTOIR 1 : RECHERCHE & MISE À JOUR ADHÉRENT
 // ==========================================
+
+const inputRecherche = document.getElementById('c1-recherche');
+const resContainer = document.getElementById('c1-resultats-recherche');
+
+// Recherche en direct parmi la liste des adhérents Firestore
+if (inputRecherche) {
+  inputRecherche.addEventListener('input', async () => {
+    const terme = inputRecherche.value.trim().toUpperCase();
+    resContainer.innerHTML = '';
+
+    if (terme.length < 2) {
+      resContainer.classList.add('hidden');
+      return;
+    }
+
+    // Récupérer la liste des adhérents
+    const snap = await getDocs(collection(db, "adherents"));
+    let correspondances = 0;
+
+    snap.forEach(docSnap => {
+      const data = docSnap.data();
+      const nomComplet = `${data.nom} ${data.prenom}`.toUpperCase();
+
+      if (nomComplet.includes(terme)) {
+        correspondances++;
+        const item = document.createElement('div');
+        item.className = "p-2 hover:bg-blue-50 cursor-pointer border-b text-sm flex justify-between items-center";
+        item.innerHTML = `
+          <span><strong>${data.nom}</strong> ${data.prenom} (${data.categorie})</span>
+          <span class="text-xs bg-slate-100 px-2 py-1 rounded text-slate-600">${data.statut_remise || 'non_commence'}</span>
+        `;
+        item.onclick = () => chargerAdherentPourEdition(docSnap.id, data);
+        resContainer.appendChild(item);
+      }
+    });
+
+    if (correspondances > 0) {
+      resContainer.classList.remove('hidden');
+    } else {
+      resContainer.classList.add('hidden');
+    }
+  });
+}
+
+// Remplir le formulaire avec l'adhérent sélectionné
+function chargerAdherentPourEdition(id, data) {
+  document.getElementById('c1-adherent-id').value = id;
+  document.getElementById('c1-nom').value = data.nom || '';
+  document.getElementById('c1-prenom').value = data.prenom || '';
+  document.getElementById('c1-dob').value = data.date_naissance || '';
+  document.getElementById('c1-categorie').value = data.categorie || '';
+  
+  document.getElementById('c1-taille-cm').value = data.taille_cm || '';
+  document.getElementById('c1-taille-main').value = data.taille_main_inch || '';
+  document.getElementById('c1-pointure').value = data.pointure || '';
+
+  document.getElementById('btn-submit-c1').textContent = "Mettre à jour et Envoyer au Comptoir 2 ➔";
+  resContainer.classList.add('hidden');
+  inputRecherche.value = `${data.nom} ${data.prenom}`;
+}
+
+// Fonction pour réinitialiser le formulaire
+window.reinitialiserFormC1 = () => {
+  document.getElementById('c1-adherent-id').value = '';
+  document.getElementById('form-c1').reset();
+  if (inputRecherche) inputRecherche.value = '';
+  document.getElementById('btn-submit-c1').textContent = "Envoyer au Comptoir 2 ➔";
+};
+
+// Soumission du formulaire (Création OU Mise à jour)
 const formC1 = document.getElementById('form-c1');
 if (formC1) {
   formC1.addEventListener('submit', async (e) => {
     e.preventDefault();
     
+    const adherentId = document.getElementById('c1-adherent-id').value;
     const payload = {
       nom: document.getElementById('c1-nom').value.trim().toUpperCase(),
       prenom: document.getElementById('c1-prenom').value.trim(),
@@ -23,15 +94,22 @@ if (formC1) {
     };
 
     try {
-      await addDoc(collection(db, "adherents"), payload);
-      alert("Adhérent envoyé au Comptoir 2 !");
-      formC1.reset();
+      if (adherentId) {
+        // MISE À JOUR de l'adhérent existant (ex: issu de l'import CSV)
+        await updateDoc(doc(db, "adherents", adherentId), payload);
+        alert("Adhérent mis à jour et envoyé au Comptoir 2 !");
+      } else {
+        // CRÉATION d'un nouvel adhérent
+        await addDoc(collection(db, "adherents"), payload);
+        alert("Nouvel adhérent créé et envoyé au Comptoir 2 !");
+      }
+      
+      reinitialiserFormC1();
     } catch (err) {
-      console.error("Erreur ajout adhérent :", err);
+      console.error("Erreur lors de l'enregistrement :", err);
     }
   });
 }
-
 // ==========================================
 // COMPTOIR 2 : ÉCOUTE EN TEMPS RÉEL (QUEUE)
 // ==========================================
