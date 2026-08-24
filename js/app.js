@@ -354,7 +354,12 @@ window.lancerImportAdherents = () => {
           ignores++;
           continue;
         }
+      // LOG DE DÉBOGAGE
+      console.log("Nom :", row["Nom"]);
+      console.log("Date lue dans CSV :", row["Date Naissance"]);
+      console.log("Date après normalisation :", normaliserDateISO(row["Date Naissance"]));
 
+        
         await addDoc(collection(db, "adherents"), {
           nom: (row["Nom"] || "").trim().toUpperCase(),
           prenom: (row["Prénom"] || "").trim(),
