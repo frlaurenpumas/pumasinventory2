@@ -287,6 +287,69 @@ async function chargerEquipementsAttribues(adhId) {
   }
 }
 
+// Liste globale des équipements constituant un pack complet obligatoire
+const EQUIPEMENTS_OBLIGATOIRES = ["casque", "plastron", "coudieres", "gants", "culotte", "jambieres"];
+
+// ==========================================
+// MISA À JOUR DES INDICATEURS COMPTOIR 2
+// ==========================================
+
+// 1. Mise à jour du Compteur Global & de l'Alerte Pièces Manquantes
+function mettreAJourIndicateursAdherentC2(equipementsAttribues = []) {
+  // Extraction des types d'équipements déjà attribués (normalisés en minuscules)
+  const typesPossedes = equipementsAttribues.map(eq => (eq.type_equipement || eq.type || "").toLowerCase());
+  
+  // Compter combien d'équipements uniques du pack ont été remis
+  const attribuésDuPack = EQUIPEMENTS_OBLIGATOIRES.filter(type => typesPossedes.includes(type));
+  const nbAttribués = attribuésDuPack.length;
+  const totalPack = EQUIPEMENTS_OBLIGATOIRES.length;
+
+  // --- INDICATEUR 1 : Compteur Global ---
+  const elCompteur = document.getElementById('c2-compteur-dotation');
+  if (elCompteur) {
+    elCompteur.textContent = `${nbAttribués} / ${totalPack}`;
+    if (nbAttribués === totalPack) {
+      elCompteur.className = "text-lg font-extrabold text-emerald-600"; // Vert si complet
+    } else {
+      elCompteur.className = "text-lg font-extrabold text-blue-900";
+    }
+  }
+
+  // --- INDICATEUR 3 : Alerte Pièces Manquantes ---
+  const elAlerte = document.getElementById('c2-alerte-manquants');
+  const elListe = document.getElementById('c2-liste-manquants');
+  
+  const manquants = EQUIPEMENTS_OBLIGATOIRES.filter(type => !typesPossedes.includes(type));
+
+  if (elAlerte && elListe) {
+    if (manquants.length > 0 && nbAttribués > 0) {
+      // Si la distribution a commencé mais qu'il manque des pièces
+      elListe.textContent = manquants.map(m => m.charAt(0).toUpperCase() + m.slice(1)).join(', ');
+      elAlerte.classList.remove('hidden');
+    } else {
+      // Masquer l'alerte si le pack est complet ou si aucune pièce n'a encore été attribuée
+      elAlerte.classList.add('hidden');
+    }
+  }
+}
+
+// 2. Mise à jour de la Jauge d'État du Stock en Temps Réel
+function mettreAJourJaugeStockC2(nombreEnStock) {
+  const badge = document.getElementById('c2-badge-stock');
+  if (!badge) return;
+
+  if (nombreEnStock === 0) {
+    badge.textContent = "Rupture de stock (0)";
+    badge.className = "px-2.5 py-1 rounded-full font-bold bg-rose-100 text-rose-700 border border-rose-300";
+  } else if (nombreEnStock <= 2) {
+    badge.textContent = `Stock critique (${nombreEnStock})`;
+    badge.className = "px-2.5 py-1 rounded-full font-bold bg-amber-100 text-amber-800 border border-amber-300";
+  } else {
+    badge.textContent = `${nombreEnStock} disponible(s)`;
+    badge.className = "px-2.5 py-1 rounded-full font-bold bg-emerald-100 text-emerald-800 border border-emerald-300";
+  }
+}
+
 // Restituer du matériel (Gestion de l'échange)
 window.restituerMateriel = async (distId, equipementId) => {
   if (!confirm("Voulez-vous réintégrer cet équipement au stock ?")) return;
