@@ -2,6 +2,35 @@ import { db, collection, addDoc, updateDoc, doc, serverTimestamp, query, where, 
 
 let currentAdherentId = null;
 
+// Convertit DD/MM/YYYY ou DD-MM-YYYY en YYYY-MM-DD (format ISO requis par HTML)
+function normaliserDateISO(dateStr) {
+  if (!dateStr) return "";
+  const str = dateStr.trim();
+  
+  // Si la date est déjà au format YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+
+  // Si la date est au format DD/MM/YYYY ou DD-MM-YYYY
+  const parts = str.split(/[/.-]/);
+  if (parts.length === 3) {
+    const jour = parts[0].padStart(2, '0');
+    const mois = parts[1].padStart(2, '0');
+    let annee = parts[2];
+    
+    // Si l'année est sur 2 chiffres (ex: 15 -> 2015)
+    if (annee.length === 2) {
+      annee = parseInt(annee) > 30 ? "19" + annee : "20" + annee;
+    }
+
+    // Si le premier bloc est le jour et le dernier l'année
+    if (parts[0].length <= 2 && parts[2].length === 4) {
+      return `${annee}-${mois}-${jour}`;
+    }
+  }
+
+  return str;
+}
+
 // ==========================================
 // COMPTOIR 1 : RECHERCHE & MISE À JOUR ADHÉRENT
 // ==========================================
