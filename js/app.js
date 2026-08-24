@@ -97,7 +97,7 @@ typeSelect.addEventListener('change', async () => {
   );
 
   const snap = await getDocs(qStock);
-  eqSelect.innerHTML = '<option value="">-- Sélectionner l'équipement --</option>';
+  eqSelect.innerHTML = '<option value="">-- Sélectionner l\'équipement --</option>';
 
   snap.forEach(docSnap => {
     const d = docSnap.data();
