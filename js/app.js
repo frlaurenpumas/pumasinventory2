@@ -328,12 +328,6 @@ window.cloturerSession = async () => {
 // IMPORTATION CSV (PAPA PARSE & WRITE BATCH)
 // ==========================================
 
-
-      // LOG DE DÉBOGAGE
-      console.log("Nom :", row["Nom"]);
-      console.log("Date lue dans CSV :", row["Date Naissance"]);
-      console.log("Date après normalisation :", normaliserDateISO(row["Date Naissance"]));
-
 // 1. Import Adhérents
 window.lancerImportAdherents = () => {
   const input = document.getElementById('csv-adherents');
