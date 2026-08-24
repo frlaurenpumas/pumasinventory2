@@ -341,11 +341,10 @@ window.lancerImportAdherents = () => {
   Papa.parse(file, {
     header: true,
     skipEmptyLines: true,
-    delimiter: ";",
+    // On retire "delimiter: ';'" pour que PapaParse détecte automatiquement virgule ou point-virgule
     complete: async (results) => {
       let ajouts = 0;
       let ignores = 0;
-      // Normalisation des catégories autorisées en majuscules sans espaces
       const categoriesAutorisees = ["EDH", "U7", "U9", "U11"];
 
       console.log("=== DÉBUT IMPORT ADHÉRENTS ===");
@@ -354,18 +353,15 @@ window.lancerImportAdherents = () => {
       for (const row of results.data) {
         // Recherche souple du champ catégorie
         const rawCat = row["Catégorie"] || row["Categorie"] || row["catégorie"] || row["categorie"] || "";
-        
-        // Nettoyage strict : majuscules, suppression des espaces et retours à la ligne (\r, \n)
         const cat = rawCat.trim().toUpperCase().replace(/[\r\n]/g, "");
 
         // Récupération souple de la date
         const rawDate = row["Date Naissance"] || row["Date de naissance"] || row["Date_Naissance"] || row["Date naissance"] || "";
 
-        console.log(`Nom: ${row["Nom"]} | Catégorie brute: "${rawCat}" | Catégorie nettoyée: "${cat}"`);
+        console.log(`Nom: ${row["Nom"]} | Prénom: ${row["Prénom"]} | Catégorie: "${cat}" | Date: "${rawDate}"`);
 
-        // Si la catégorie nettoyée n'est pas dans la liste autorisée
         if (!categoriesAutorisees.includes(cat)) {
-          console.warn(`Ligne ignorée (catégorie non retenue) : ${row["Nom"]} ${row["Prénom"]} (${cat})`);
+          console.warn(`Ligne ignorée (catégorie hors EDH/U7/U9/U11) : ${row["Nom"]} ${row["Prénom"]} (${cat})`);
           ignores++;
           continue;
         }
@@ -390,7 +386,6 @@ window.lancerImportAdherents = () => {
   });
 };
         
-        
 
 // 2. Import Matériel
 window.lancerImportEquipements = () => {
@@ -405,7 +400,6 @@ window.lancerImportEquipements = () => {
   Papa.parse(file, {
     header: true,
     skipEmptyLines: true,
-    delimiter: ";",
     complete: async (results) => {
       let ajouts = 0;
 
