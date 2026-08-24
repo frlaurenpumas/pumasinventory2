@@ -29,64 +29,83 @@
       <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
         <h2 class="text-lg font-bold text-blue-900 mb-4">Comptoir 1 — Identification et mesures de l'adhérent</h2>
         
-        <form id="form-c1" class="space-y-4">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium mb-1">Nom</label>
-              <input type="text" id="c1-nom" required class="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 uppercase">
-            </div>
-            <div>
-              <label class="block text-sm font-medium mb-1">Prénom</label>
-              <input type="text" id="c1-prenom" required class="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 capitalize">
-            </div>
-          </div>
+<form id="form-c1" class="space-y-4">
+  
+  <!-- BARRE DE RECHERCHE DYNAMIQUE -->
+  <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-4">
+    <label class="block text-sm font-bold text-blue-900 mb-1">🔍 Rechercher un adhérent pré-existant</label>
+    <div class="relative">
+      <input type="text" id="c1-recherche" placeholder="Tapez le nom ou le prénom..." class="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 bg-white">
+      <div id="c1-resultats-recherche" class="hidden absolute z-10 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1"></div>
+    </div>
+    <p class="text-xs text-slate-500 mt-1">Sélectionnez un adhérent pour compléter ses données, ou remplissez directement le formulaire ci-dessous pour un nouveau.</p>
+  </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium mb-1">Date de naissance</label>
-              <input type="date" id="c1-dob" required class="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500">
-            </div>
-            <div>
-              <label class="block text-sm font-medium mb-1">Catégorie</label>
-              <select id="c1-categorie" required class="w-full border rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-blue-500">
-                <option value="">-- Sélectionner --</option>
-                <option value="EDH">EDH (École de Hockey)</option>
-                <option value="U7">U7</option>
-                <option value="U9">U9</option>
-                <option value="U11">U11</option>
-              </select>
-            </div>
-          </div>
+  <!-- CHAMP CACHÉ POUR CONSERVER L'ID (S'IL S'AGIT D'UNE MISE À JOUR) -->
+  <input type="hidden" id="c1-adherent-id" value="">
 
-          <hr class="my-4 border-slate-100">
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div>
+      <label class="block text-sm font-medium mb-1">Nom</label>
+      <input type="text" id="c1-nom" required class="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 uppercase">
+    </div>
+    <div>
+      <label class="block text-sm font-medium mb-1">Prénom</label>
+      <input type="text" id="c1-prenom" required class="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 capitalize">
+    </div>
+  </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
-            <div>
-              <label class="block text-sm font-medium mb-1">Taille (cm)</label>
-              <input type="number" id="c1-taille-cm" min="90" max="180" placeholder="ex: 125" class="w-full border rounded-lg p-2.5 bg-white">
-            </div>
-            <div>
-              <label class="block text-sm font-medium mb-1">Taille Main (inch)</label>
-              <select id="c1-taille-main" class="w-full border rounded-lg p-2.5 bg-white">
-                <option value="">-- Sélectionner --</option>
-                <option value="8&quot;">8"</option>
-                <option value="9&quot;">9"</option>
-                <option value="10&quot;">10"</option>
-                <option value="11&quot;">11"</option>
-                <option value="12&quot;">12"</option>
-                <option value="13&quot;">13"</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-sm font-medium mb-1">Pointure</label>
-              <input type="number" id="c1-pointure" min="25" max="45" placeholder="ex: 32" class="w-full border rounded-lg p-2.5 bg-white">
-            </div>
-          </div>
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div>
+      <label class="block text-sm font-medium mb-1">Date de naissance</label>
+      <input type="date" id="c1-dob" required class="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500">
+    </div>
+    <div>
+      <label class="block text-sm font-medium mb-1">Catégorie</label>
+      <select id="c1-categorie" required class="w-full border rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-blue-500">
+        <option value="">-- Sélectionner --</option>
+        <option value="EDH">EDH (École de Hockey)</option>
+        <option value="U7">U7</option>
+        <option value="U9">U9</option>
+        <option value="U11">U11</option>
+      </select>
+    </div>
+  </div>
 
-          <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg shadow">
-            Envoyer au Comptoir 2 ➔
-          </button>
-        </form>
+  <hr class="my-4 border-slate-100">
+
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
+    <div>
+      <label class="block text-sm font-medium mb-1">Taille (cm)</label>
+      <input type="number" id="c1-taille-cm" min="90" max="180" placeholder="ex: 125" class="w-full border rounded-lg p-2.5 bg-white">
+    </div>
+    <div>
+      <label class="block text-sm font-medium mb-1">Taille Main (inch)</label>
+      <select id="c1-taille-main" class="w-full border rounded-lg p-2.5 bg-white">
+        <option value="">-- Sélectionner --</option>
+        <option value="8&quot;">8"</option>
+        <option value="9&quot;">9"</option>
+        <option value="10&quot;">10"</option>
+        <option value="11&quot;">11"</option>
+        <option value="12&quot;">12"</option>
+        <option value="13&quot;">13"</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-sm font-medium mb-1">Pointure</label>
+      <input type="number" id="c1-pointure" min="25" max="45" placeholder="ex: 32" class="w-full border rounded-lg p-2.5 bg-white">
+    </div>
+  </div>
+
+  <div class="flex gap-2">
+    <button type="button" onclick="reinitialiserFormC1()" class="w-1/3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-3 rounded-lg">
+      Effacer
+    </button>
+    <button type="submit" id="btn-submit-c1" class="w-2/3 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg shadow">
+      Envoyer au Comptoir 2 ➔
+    </button>
+  </div>
+</form>
       </div>
     </section>
 
