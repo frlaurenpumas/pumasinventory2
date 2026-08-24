@@ -328,6 +328,12 @@ window.cloturerSession = async () => {
 // IMPORTATION CSV (PAPA PARSE & WRITE BATCH)
 // ==========================================
 
+
+      // LOG DE DÉBOGAGE
+      console.log("Nom :", row["Nom"]);
+      console.log("Date lue dans CSV :", row["Date Naissance"]);
+      console.log("Date après normalisation :", normaliserDateISO(row["Date Naissance"]));
+
 // 1. Import Adhérents
 window.lancerImportAdherents = () => {
   const input = document.getElementById('csv-adherents');
@@ -345,39 +351,52 @@ window.lancerImportAdherents = () => {
     complete: async (results) => {
       let ajouts = 0;
       let ignores = 0;
+      // Normalisation des catégories autorisées en majuscules sans espaces
       const categoriesAutorisees = ["EDH", "U7", "U9", "U11"];
 
+      console.log("=== DÉBUT IMPORT ADHÉRENTS ===");
+      console.log("Exemple de ligne brute lue :", results.data[0]);
+
       for (const row of results.data) {
-        const cat = row["Catégorie"] ? row["Catégorie"].trim() : "";
+        // Recherche souple du champ catégorie
+        const rawCat = row["Catégorie"] || row["Categorie"] || row["catégorie"] || row["categorie"] || "";
         
+        // Nettoyage strict : majuscules, suppression des espaces et retours à la ligne (\r, \n)
+        const cat = rawCat.trim().toUpperCase().replace(/[\r\n]/g, "");
+
+        // Récupération souple de la date
+        const rawDate = row["Date Naissance"] || row["Date de naissance"] || row["Date_Naissance"] || row["Date naissance"] || "";
+
+        console.log(`Nom: ${row["Nom"]} | Catégorie brute: "${rawCat}" | Catégorie nettoyée: "${cat}"`);
+
+        // Si la catégorie nettoyée n'est pas dans la liste autorisée
         if (!categoriesAutorisees.includes(cat)) {
+          console.warn(`Ligne ignorée (catégorie non retenue) : ${row["Nom"]} ${row["Prénom"]} (${cat})`);
           ignores++;
           continue;
         }
-      // LOG DE DÉBOGAGE
-      console.log("Nom :", row["Nom"]);
-      console.log("Date lue dans CSV :", row["Date Naissance"]);
-      console.log("Date après normalisation :", normaliserDateISO(row["Date Naissance"]));
 
-        
         await addDoc(collection(db, "adherents"), {
           nom: (row["Nom"] || "").trim().toUpperCase(),
           prenom: (row["Prénom"] || "").trim(),
-          date_naissance: row["Date Naissance"] || "",
+          date_naissance: normaliserDateISO(rawDate),
           categorie: cat,
-          taille_cm: parseInt(row["Taille (cm)"]) || null,
-          taille_main_inch: row["Taille Main(inch)"] || null,
+          taille_cm: parseInt(row["Taille (cm)"] || row["Taille"]) || null,
+          taille_main_inch: row["Taille Main(inch)"] || row["Taille Main"] || null,
           pointure: parseInt(row["Pointure"]) || null,
           statut_remise: "non_commence",
           date_maj: serverTimestamp()
         });
         ajouts++;
       }
-      alert(`Import adhérents terminé !\n- ${ajouts} adhérents ajoutés.\n- ${ignores} ignorés (catégorie > U11).`);
+
+      alert(`Import adhérents terminé !\n- ${ajouts} adhérents ajoutés.\n- ${ignores} ignorés (catégorie hors EDH/U7/U9/U11).`);
       input.value = "";
     }
   });
 };
+        
+        
 
 // 2. Import Matériel
 window.lancerImportEquipements = () => {
