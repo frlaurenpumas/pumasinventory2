@@ -131,7 +131,7 @@ formC2.addEventListener('submit', async (e) => {
   });
 
   formC2.reset();
-  eqSelect.innerHTML = '<option value="">-- Sélectionner le type d'abord --</option>';
+  eqSelect.innerHTML = '<option value="">-- Sélectionner le type d\'abord --</option>';
   chargerEquipementsAttribues(currentAdherentId);
 });
 
