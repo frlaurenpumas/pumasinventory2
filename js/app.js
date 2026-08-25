@@ -275,8 +275,9 @@ function getAdherentMeasureForType(type, adh) {
   
   const cleanNumber = (val) => {
     if (val === null || val === undefined || val === "") return null;
-    const num = parseFloat(String(val).replace(/[^0-9.]/g, ""));
-    return isNaN(num) ? null : num;
+    // Extrait les chiffres et le point décimal (ex: '10"' -> 10, '34.5' -> 34.5)
+    const match = String(val).replace(',', '.').match(/\d+(\.\d+)?/);
+    return match ? parseFloat(match[0]) : null;
   };
 
   switch (type) {
@@ -287,10 +288,8 @@ function getAdherentMeasureForType(type, adh) {
     case "Gants":
       return cleanNumber(adh.tailleMainInch);
     case "Crosse":
-      // Aucune mesure appliquée pour les crosses
       return null;
     default:
-      // Plastron, Coudières, Culotte, Jambières, Maillot, Sac...
       return cleanNumber(adh.tailleCm);
   }
 }
@@ -341,7 +340,7 @@ function populateGridSizes(index, type) {
   const measure = getAdherentMeasureForType(type, currentAdherentC2);
   const inStockEquipment = allInventoryCache.filter(eq => eq.type === type && eq.statut === "en_stock");
 
-  // Nettoyage et récupération des tailles uniques
+  // Tailles uniques disponibles en stock
   const availableSizes = [...new Set(inStockEquipment.map(eq => eq.taille))].filter(Boolean);
 
   sizeSelect.innerHTML = '<option value="">-- Choisir une taille --</option>';
@@ -354,35 +353,42 @@ function populateGridSizes(index, type) {
     const isRecommended = inStockEquipment.some(eq => {
       if (String(eq.taille) !== strTaille) return false;
 
-      // CROSSES : Aucune suggestion (toujours préconisé à false sauf si 'Afficher tout' est coché)
+      // CROSSES : Aucune préconisation automatique
       if (type === "Crosse") return false;
 
-      // Si l'adhérent n'a pas de mesure renseignée, on préconise tout par défaut
+      // Si pas de mesure renseignée pour l'adhérent
       if (measure === null) return true;
 
       const range = parseTailleEnfantRange(eq.tailleEnfant);
 
       // CAS A : Pas de 'tailleEnfant' définie dans l'inventaire
       if (!range) {
-        const numTaille = parseFloat(strTaille.replace(/[^0-9.]/g, ""));
-        
-        // PATINS : Tolérance ± 1 pointure
+        // Extraction du nombre dans la taille de l'équipement (ex: '10"' -> 10, '33 EU' -> 33)
+        const matchTaille = strTaille.replace(',', '.').match(/\d+(\.\d+)?/);
+        const numTaille = matchTaille ? parseFloat(matchTaille[0]) : null;
+
+        // PATINS : Pointure mesurée ± 1 (ex: mesure = 32 -> accepte 31, 32, 33)
         if (type === "Patins") {
-          return !isNaN(numTaille) && Math.abs(numTaille - measure) <= 1;
+          if (numTaille !== null) {
+            const diff = Math.abs(Math.round(numTaille) - Math.round(measure));
+            return diff <= 1;
+          }
+          return false;
         }
 
-        // GANTS et AUTRES : Match exact obligatoire
-        if (!isNaN(numTaille)) {
+        // GANTS et AUTRES : Match numérique exact
+        if (numTaille !== null) {
           return numTaille === measure;
         }
 
+        // Si la taille est un libellé texte (ex: 'S', 'M', 'L'), on ne bloque pas
         return true;
       }
 
-      // CAS B : Plage avec borne min et max identique (ex: "10" -> min:10, max:10)
+      // CAS B : Plage min/max identique (ex: "10" -> min:10, max:10)
       if (range.min === range.max) {
         if (type === "Patins") {
-          return Math.abs(measure - range.min) <= 1;
+          return Math.abs(Math.round(measure) - Math.round(range.min)) <= 1;
         }
         return measure === range.min;
       }
