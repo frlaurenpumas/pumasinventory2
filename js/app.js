@@ -394,20 +394,24 @@ function importAdherentsCSV() {
   if (!fileInput.files[0]) return alert("Veuillez choisir un fichier CSV.");
 
   console.log("[DEBUG] Début import CSV Adhérents...");
-  // Ne pas fixer "delimiter" selon la consigne
   Papa.parse(fileInput.files[0], {
     header: true,
     skipEmptyLines: true,
+    transformHeader: (h) => h.trim(), // Nettoie les espaces invisibles dans les entêtes
     complete: async (results) => {
       console.log(`[DEBUG] CSV Adhérents analysé. ${results.data.length} lignes trouvées.`, results.data);
-      const batch = db.batch();
+      const batch = db.collection("adherents");
       
-      results.data.forEach(row => {
+      for (const row of results.data) {
+        // Extraction de la date (supporte 'Date Naissance', 'DateNaissance', etc.)
+        let rawDate = row["Date Naissance"] || row["DateNaissance"] || row["dateNaissance"] || "";
+        let formattedDate = formatDateToISO(rawDate);
+
         const docRef = db.collection("adherents").doc();
-        batch.set(docRef, {
+        await docRef.set({
           nom: row["Nom"] || "",
           prenom: row["Prénom"] || "",
-          dateNaissance: row["Date Naissance"] || "",
+          dateNaissance: formattedDate,
           categorie: row["Catégorie"] || "",
           tailleCm: Number(row["Taille (cm)"]) || null,
           tourTeteCm: Number(row["Tour de tête (cm)"]) || null,
@@ -416,13 +420,35 @@ function importAdherentsCSV() {
           statut: "Nouveau",
           importedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-      });
+      }
 
-      await batch.commit();
       alert(`Importation réussie : ${results.data.length} adhérents ajoutés.`);
       console.log("[DEBUG] Importation adhérents Firestore terminée.");
     }
   });
+}
+
+// Fonction utilitaire pour convertir les dates au format YYYY-MM-DD
+function formatDateToISO(dateStr) {
+  if (!dateStr) return "";
+  dateStr = dateStr.trim();
+
+  // Si déjà au format YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+
+  // Si format DD/MM/YYYY ou DD-MM-YYYY
+  if (/^\d{2}[\/\-]\d{2}[\/\-]\d{4}$/.test(dateStr)) {
+    const parts = dateStr.split(/[\/\-]/);
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+
+  // Si année sur 4 chiffres avec mois/jours simples (ex: 2012-5-9)
+  const d = new Date(dateStr);
+  if (!isNaN(d.getTime())) {
+    return d.toISOString().split("T")[0];
+  }
+
+  return dateStr;
 }
 
 function importInventoryCSV() {
