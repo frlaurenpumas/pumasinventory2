@@ -155,17 +155,17 @@
           
           <!-- Formulaire attribution sous forme de tableau 10 lignes / 4 colonnes -->
           <form id="form-attribution" onsubmit="assignAllEquipment(event)">
-            <table class="data-table mt-2">
+            <table class="table">
               <thead>
                 <tr>
-                  <th style="width: 25%;">1. Équipement</th>
-                  <th style="width: 35%;">2. Marque & Modèle</th>
-                  <th style="width: 25%;">3. Taille</th>
-                  <th style="width: 15%;">Stock disponible</th>
+                  <th>Équipement</th>
+                  <th>Taille</th>
+                  <th>Marque & Modèle</th>
+                  <th class="text-center">Stock</th>
                 </tr>
               </thead>
               <tbody id="grid-attribution-body">
-                <!-- Généré dynamiquement en JS pour les 10 types d'équipement -->
+                <!-- Généré dynamiquement en JS -->
               </tbody>
             </table>
           
