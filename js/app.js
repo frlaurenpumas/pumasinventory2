@@ -266,17 +266,25 @@ function parseTailleEnfantRange(tailleStr) {
 // Sélectionne la bonne valeur de mesure de l'adhérent selon le type d'équipement
 function getAdherentMeasureForType(type, adh) {
   if (!adh) return null;
+  
+  // Fonction utilitaire pour extraire un nombre pur d'une chaîne (ex: "10\"", "10&quot;", "10")
+  const cleanNumber = (val) => {
+    if (val === null || val === undefined || val === "") return null;
+    const num = parseFloat(String(val).replace(/[^0-9.]/g, ""));
+    return isNaN(num) ? null : num;
+  };
+
   switch (type) {
     case "Casque":
-      return adh.tourTeteCm ? Number(adh.tourTeteCm) : null;
+      return cleanNumber(adh.tourTeteCm);
     case "Patins":
-      return adh.pointure ? Number(adh.pointure) : null;
+      return cleanNumber(adh.pointure);
     case "Gants":
     case "Crosse":
-      return adh.tailleMainInch ? Number(adh.tailleMainInch) : null;
+      return cleanNumber(adh.tailleMainInch);
     default:
       // Plastron, Coudières, Culotte, Jambières, Maillot, Sac...
-      return adh.tailleCm ? Number(adh.tailleCm) : null;
+      return cleanNumber(adh.tailleCm);
   }
 }
 
