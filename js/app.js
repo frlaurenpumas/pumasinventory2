@@ -90,15 +90,23 @@ function fillAdherentForm(adh) {
   document.getElementById("adh-id").value = adh.id;
   document.getElementById("adh-nom").value = adh.nom || "";
   document.getElementById("adh-prenom").value = adh.prenom || "";
-  document.getElementById("adh-dob").value = adh.dateNaissance || "";
+  
+  // Formatage garanti YYYY-MM-DD pour le champ type="date"
+  const dob = adh.dateNaissance ? formatDateToISO(adh.dateNaissance) : "";
+  document.getElementById("adh-dob").value = dob;
+
   document.getElementById("adh-categorie").value = adh.categorie || "";
   document.getElementById("adh-taille-cm").value = adh.tailleCm || "";
   document.getElementById("adh-tete-cm").value = adh.tourTeteCm || "";
   document.getElementById("adh-main-inch").value = adh.tailleMainInch || "";
   document.getElementById("adh-pointure").value = adh.pointure || "";
   document.getElementById("c1-search-results").innerHTML = "";
-}
 
+  // Déclencher le recalcul automatique de la catégorie si la date est présente
+  if (dob) {
+    calculateCategory();
+  }
+}
 function resetAdherentForm() {
   console.log("[DEBUG] Réinitialisation du formulaire adhérent.");
   document.getElementById("adh-id").value = "";
