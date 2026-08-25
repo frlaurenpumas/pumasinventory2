@@ -2,122 +2,20 @@ import { db, collection, addDoc, updateDoc, doc, serverTimestamp, query, where, 
 
 let currentAdherentId = null;
 
-// Convertit DD/MM/YYYY ou DD-MM-YYYY en YYYY-MM-DD (format ISO requis par HTML)
-function normaliserDateISO(dateStr) {
-  if (!dateStr) return "";
-  const str = dateStr.trim();
-  
-  // Si la date est déjà au format YYYY-MM-DD
-  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
-
-  // Si la date est au format DD/MM/YYYY ou DD-MM-YYYY
-  const parts = str.split(/[/.-]/);
-  if (parts.length === 3) {
-    const jour = parts[0].padStart(2, '0');
-    const mois = parts[1].padStart(2, '0');
-    let annee = parts[2];
-    
-    // Si l'année est sur 2 chiffres (ex: 15 -> 2015)
-    if (annee.length === 2) {
-      annee = parseInt(annee) > 30 ? "19" + annee : "20" + annee;
-    }
-
-    // Si le premier bloc est le jour et le dernier l'année
-    if (parts[0].length <= 2 && parts[2].length === 4) {
-      return `${annee}-${mois}-${jour}`;
-    }
-  }
-
-  return str;
-}
-
 // ==========================================
-// COMPTOIR 1 : RECHERCHE & MISE À JOUR ADHÉRENT
+// COMPTOIR 1 : ENREGISTREMENT & ENVOI
 // ==========================================
-
-const inputRecherche = document.getElementById('c1-recherche');
-const resContainer = document.getElementById('c1-resultats-recherche');
-
-// Recherche en direct parmi la liste des adhérents Firestore
-if (inputRecherche) {
-  inputRecherche.addEventListener('input', async () => {
-    const terme = inputRecherche.value.trim().toUpperCase();
-    resContainer.innerHTML = '';
-
-    if (terme.length < 2) {
-      resContainer.classList.add('hidden');
-      return;
-    }
-
-    // Récupérer la liste des adhérents
-    const snap = await getDocs(collection(db, "adherents"));
-    let correspondances = 0;
-
-    snap.forEach(docSnap => {
-      const data = docSnap.data();
-      const nomComplet = `${data.nom} ${data.prenom}`.toUpperCase();
-
-      if (nomComplet.includes(terme)) {
-        correspondances++;
-        const item = document.createElement('div');
-        item.className = "p-2 hover:bg-blue-50 cursor-pointer border-b text-sm flex justify-between items-center";
-        item.innerHTML = `
-          <span><strong>${data.nom}</strong> ${data.prenom} (${data.categorie})</span>
-          <span class="text-xs bg-slate-100 px-2 py-1 rounded text-slate-600">${data.statut_remise || 'non_commence'}</span>
-        `;
-        item.onclick = () => chargerAdherentPourEdition(docSnap.id, data);
-        resContainer.appendChild(item);
-      }
-    });
-
-    if (correspondances > 0) {
-      resContainer.classList.remove('hidden');
-    } else {
-      resContainer.classList.add('hidden');
-    }
-  });
-}
-
-// Remplir le formulaire avec l'adhérent sélectionné
-function chargerAdherentPourEdition(id, data) {
-  document.getElementById('c1-adherent-id').value = id;
-  document.getElementById('c1-nom').value = data.nom || '';
-  document.getElementById('c1-prenom').value = data.prenom || '';
-  document.getElementById('c1-dob').value = data.date_naissance || '';
-  document.getElementById('c1-categorie').value = data.categorie || '';
-  
-  document.getElementById('c1-taille-cm').value = data.taille_cm || '';
-  document.getElementById('c1-tour-tete-cm').value = data.tour_tete_cm || '';
-  document.getElementById('c1-taille-main').value = data.taille_main_inch || '';
-  document.getElementById('c1-pointure').value = data.pointure || '';
-
-  document.getElementById('btn-submit-c1').textContent = "Mettre à jour et Envoyer au Comptoir 2 ➔";
-  resContainer.classList.add('hidden');
-  inputRecherche.value = `${data.nom} ${data.prenom}`;
-}
-
-// Fonction pour réinitialiser le formulaire
-window.reinitialiserFormC1 = () => {
-  document.getElementById('c1-adherent-id').value = '';
-  document.getElementById('form-c1').reset();
-  if (inputRecherche) inputRecherche.value = '';
-  document.getElementById('btn-submit-c1').textContent = "Envoyer au Comptoir 2 ➔";
-};
-
-// Soumission du formulaire (Création OU Mise à jour)
 const formC1 = document.getElementById('form-c1');
 if (formC1) {
   formC1.addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    const adherentId = document.getElementById('c1-adherent-id').value;
     const payload = {
       nom: document.getElementById('c1-nom').value.trim().toUpperCase(),
       prenom: document.getElementById('c1-prenom').value.trim(),
       date_naissance: document.getElementById('c1-dob').value,
       categorie: document.getElementById('c1-categorie').value,
       taille_cm: parseInt(document.getElementById('c1-taille-cm').value) || null,
-      tour_tete_cm: parseInt(document.getElementById('c1-tour-tete-cm').value) || null,
       taille_main_inch: document.getElementById('c1-taille-main').value || null,
       pointure: parseInt(document.getElementById('c1-pointure').value) || null,
       statut_remise: "en_attente_comptoir_2",
@@ -125,22 +23,15 @@ if (formC1) {
     };
 
     try {
-      if (adherentId) {
-        // MISE À JOUR de l'adhérent existant (ex: issu de l'import CSV)
-        await updateDoc(doc(db, "adherents", adherentId), payload);
-        alert("Adhérent mis à jour et envoyé au Comptoir 2 !");
-      } else {
-        // CRÉATION d'un nouvel adhérent
-        await addDoc(collection(db, "adherents"), payload);
-        alert("Nouvel adhérent créé et envoyé au Comptoir 2 !");
-      }
-      
-      reinitialiserFormC1();
+      await addDoc(collection(db, "adherents"), payload);
+      alert("Adhérent envoyé au Comptoir 2 !");
+      formC1.reset();
     } catch (err) {
-      console.error("Erreur lors de l'enregistrement :", err);
+      console.error("Erreur ajout adhérent :", err);
     }
   });
 }
+
 // ==========================================
 // COMPTOIR 2 : ÉCOUTE EN TEMPS RÉEL (QUEUE)
 // ==========================================
@@ -181,7 +72,6 @@ function chargerAdherent(id, data) {
   document.getElementById('c2-adh-infos').textContent = `Catégorie: ${data.categorie} | Né(e) le: ${data.date_naissance}`;
   
   document.getElementById('rep-taille').textContent = data.taille_cm || '-';
-  document.getElementById('rep-tete').textContent = data.tour_tete_cm || '-';
   document.getElementById('rep-main').textContent = data.taille_main_inch || '-';
   document.getElementById('rep-pointure').textContent = data.pointure || '-';
 
@@ -207,7 +97,7 @@ typeSelect.addEventListener('change', async () => {
   );
 
   const snap = await getDocs(qStock);
-  eqSelect.innerHTML = '<option value="">-- Sélectionner l\'équipement --</option>';
+  eqSelect.innerHTML = '<option value="">-- Sélectionner l'équipement --</option>';
 
   snap.forEach(docSnap => {
     const d = docSnap.data();
@@ -241,7 +131,7 @@ formC2.addEventListener('submit', async (e) => {
   });
 
   formC2.reset();
-  eqSelect.innerHTML = '<option value="">-- Sélectionner le type d\'abord --</option>';
+  eqSelect.innerHTML = '<option value="">-- Sélectionner le type d'abord --</option>';
   chargerEquipementsAttribues(currentAdherentId);
 });
 
@@ -287,69 +177,6 @@ async function chargerEquipementsAttribues(adhId) {
   }
 }
 
-// Liste globale des équipements constituant un pack complet obligatoire
-const EQUIPEMENTS_OBLIGATOIRES = ["casque", "plastron", "coudieres", "gants", "culotte", "jambieres"];
-
-// ==========================================
-// MISA À JOUR DES INDICATEURS COMPTOIR 2
-// ==========================================
-
-// 1. Mise à jour du Compteur Global & de l'Alerte Pièces Manquantes
-function mettreAJourIndicateursAdherentC2(equipementsAttribues = []) {
-  // Extraction des types d'équipements déjà attribués (normalisés en minuscules)
-  const typesPossedes = equipementsAttribues.map(eq => (eq.type_equipement || eq.type || "").toLowerCase());
-  
-  // Compter combien d'équipements uniques du pack ont été remis
-  const attribuésDuPack = EQUIPEMENTS_OBLIGATOIRES.filter(type => typesPossedes.includes(type));
-  const nbAttribués = attribuésDuPack.length;
-  const totalPack = EQUIPEMENTS_OBLIGATOIRES.length;
-
-  // --- INDICATEUR 1 : Compteur Global ---
-  const elCompteur = document.getElementById('c2-compteur-dotation');
-  if (elCompteur) {
-    elCompteur.textContent = `${nbAttribués} / ${totalPack}`;
-    if (nbAttribués === totalPack) {
-      elCompteur.className = "text-lg font-extrabold text-emerald-600"; // Vert si complet
-    } else {
-      elCompteur.className = "text-lg font-extrabold text-blue-900";
-    }
-  }
-
-  // --- INDICATEUR 3 : Alerte Pièces Manquantes ---
-  const elAlerte = document.getElementById('c2-alerte-manquants');
-  const elListe = document.getElementById('c2-liste-manquants');
-  
-  const manquants = EQUIPEMENTS_OBLIGATOIRES.filter(type => !typesPossedes.includes(type));
-
-  if (elAlerte && elListe) {
-    if (manquants.length > 0 && nbAttribués > 0) {
-      // Si la distribution a commencé mais qu'il manque des pièces
-      elListe.textContent = manquants.map(m => m.charAt(0).toUpperCase() + m.slice(1)).join(', ');
-      elAlerte.classList.remove('hidden');
-    } else {
-      // Masquer l'alerte si le pack est complet ou si aucune pièce n'a encore été attribuée
-      elAlerte.classList.add('hidden');
-    }
-  }
-}
-
-// 2. Mise à jour de la Jauge d'État du Stock en Temps Réel
-function mettreAJourJaugeStockC2(nombreEnStock) {
-  const badge = document.getElementById('c2-badge-stock');
-  if (!badge) return;
-
-  if (nombreEnStock === 0) {
-    badge.textContent = "Rupture de stock (0)";
-    badge.className = "px-2.5 py-1 rounded-full font-bold bg-rose-100 text-rose-700 border border-rose-300";
-  } else if (nombreEnStock <= 2) {
-    badge.textContent = `Stock critique (${nombreEnStock})`;
-    badge.className = "px-2.5 py-1 rounded-full font-bold bg-amber-100 text-amber-800 border border-amber-300";
-  } else {
-    badge.textContent = `${nombreEnStock} disponible(s)`;
-    badge.className = "px-2.5 py-1 rounded-full font-bold bg-emerald-100 text-emerald-800 border border-emerald-300";
-  }
-}
-
 // Restituer du matériel (Gestion de l'échange)
 window.restituerMateriel = async (distId, equipementId) => {
   if (!confirm("Voulez-vous réintégrer cet équipement au stock ?")) return;
@@ -389,143 +216,4 @@ window.cloturerSession = async () => {
   document.getElementById('zone-attribution').classList.add('hidden');
   document.getElementById('aucun-selectionne').classList.remove('hidden');
   currentAdherentId = null;
-};
-// ==========================================
-// IMPORTATION CSV (PAPA PARSE & WRITE BATCH)
-// ==========================================
-
-// 1. Import Adhérents
-window.lancerImportAdherents = () => {
-  const input = document.getElementById('csv-adherents');
-  const file = input ? input.files[0] : null;
-
-  if (!file) {
-    alert("Veuillez d'abord sélectionner un fichier CSV d'adhérents.");
-    return;
-  }
-
-  Papa.parse(file, {
-    header: true,
-    skipEmptyLines: true,
-    // On retire "delimiter: ';'" pour que PapaParse détecte automatiquement virgule ou point-virgule
-    complete: async (results) => {
-      let ajouts = 0;
-      let ignores = 0;
-      const categoriesAutorisees = ["EDH", "U7", "U9", "U11"];
-
-      console.log("=== DÉBUT IMPORT ADHÉRENTS ===");
-      console.log("Exemple de ligne brute lue :", results.data[0]);
-
-      for (const row of results.data) {
-        // Recherche souple du champ catégorie
-        const rawCat = row["Catégorie"] || row["Categorie"] || row["catégorie"] || row["categorie"] || "";
-        const cat = rawCat.trim().toUpperCase().replace(/[\r\n]/g, "");
-
-        // Récupération souple de la date
-        const rawDate = row["Date Naissance"] || row["Date de naissance"] || row["Date_Naissance"] || row["Date naissance"] || "";
-
-        console.log(`Nom: ${row["Nom"]} | Prénom: ${row["Prénom"]} | Catégorie: "${cat}" | Date: "${rawDate}"`);
-
-        if (!categoriesAutorisees.includes(cat)) {
-          console.warn(`Ligne ignorée (catégorie hors EDH/U7/U9/U11) : ${row["Nom"]} ${row["Prénom"]} (${cat})`);
-          ignores++;
-          continue;
-        }
-
-        await addDoc(collection(db, "adherents"), {
-          nom: (row["Nom"] || "").trim().toUpperCase(),
-          prenom: (row["Prénom"] || "").trim(),
-          date_naissance: normaliserDateISO(rawDate),
-          categorie: cat,
-          taille_cm: parseInt(row["Taille (cm)"] || row["Taille"]) || null,
-          tour_tete_cm: parseInt(row["Tour de tête (cm)"] || row["Tour de tete (cm)"] || row["Tour de tête"] || row["Tour de tete"]) || null,
-          taille_main_inch: row["Taille Main(inch)"] || row["Taille Main"] || null,
-          pointure: parseInt(row["Pointure"]) || null,
-          statut_remise: "non_commence",
-          date_maj: serverTimestamp()
-        });
-        ajouts++;
-      }
-
-      alert(`Import adhérents terminé !\n- ${ajouts} adhérents ajoutés.\n- ${ignores} ignorés (catégorie hors EDH/U7/U9/U11).`);
-      input.value = "";
-    }
-  });
-};
-        
-
-// 2. Import Matériel
-window.lancerImportEquipements = () => {
-  const input = document.getElementById('csv-equipements');
-  const file = input ? input.files[0] : null;
-
-  if (!file) {
-    alert("Veuillez d'abord sélectionner un fichier CSV de matériel.");
-    return;
-  }
-
-  Papa.parse(file, {
-    header: true,
-    skipEmptyLines: true,
-    complete: async (results) => {
-      let ajouts = 0;
-
-      for (const row of results.data) {
-        if (!row["Type équipement"]) continue;
-
-        await addDoc(collection(db, "equipements"), {
-          type_equipement: row["Type équipement"].trim(),
-          marque: (row["Marque"] || "").trim(),
-          modele: (row["Modèle"] || "").trim(),
-          taille: (row["Taille"] || "").trim(),
-          taille_enfant: (row["Taille enfant"] || "").trim(),
-          statut: "en_stock",
-          adherent_actuel_id: null
-        });
-        ajouts++;
-      }
-      alert(`Import matériel terminé !\n- ${ajouts} équipements ajoutés au stock.`);
-      input.value = "";
-    }
-  });
-};
-
-// ==========================================
-// EXPORTATION CSV
-// ==========================================
-window.exporterCollection = async (nomCollection) => {
-  const snap = await getDocs(collection(db, nomCollection));
-  if (snap.empty) {
-    alert("Aucune donnée à exporter.");
-    return;
-  }
-
-  const donnees = [];
-  snap.forEach(docSnap => {
-    const data = docSnap.data();
-    
-    // Conversion des timestamps Firestore en date lisible ISO
-    if (data.date_maj && data.date_maj.toDate) {
-      data.date_maj = data.date_maj.toDate().toISOString();
-    }
-    if (data.date_heure && data.date_heure.toDate) {
-      data.date_heure = data.date_heure.toDate().toISOString();
-    }
-    
-    data.id_firestore = docSnap.id;
-    donnees.push(data);
-  });
-
-  // Génération du CSV
-  const csv = Papa.unparse(donnees, { delimiter: ";" });
-  
-  // Téléchargement automatique du fichier
-  const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' }); // \ufeff garantit le bon encodage UTF-8 sous Excel
-  const link = document.createElement("a");
-  const url = URL.createObjectURL(blob);
-  link.setAttribute("href", url);
-  link.setAttribute("download", `export_${nomCollection}_${new Date().toISOString().slice(0,10)}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
 };
