@@ -325,6 +325,8 @@ function populateGridSizes(index, type) {
 
   const measure = getAdherentMeasureForType(type, currentAdherentC2);
   const inStockEquipment = allInventoryCache.filter(eq => eq.type === type && eq.statut === "en_stock");
+  
+  // Nettoyage et récupération des tailles uniques
   const availableSizes = [...new Set(inStockEquipment.map(eq => eq.taille))].filter(Boolean);
 
   sizeSelect.innerHTML = '<option value="">-- Choisir une taille --</option>';
@@ -332,8 +334,11 @@ function populateGridSizes(index, type) {
   let recommendedCount = 0;
 
   availableSizes.forEach(taille => {
+    // Conversion explicite en String pour la sécurité
+    const strTaille = String(taille);
+
     const isRecommended = inStockEquipment.some(eq => {
-      if (eq.taille !== taille) return false;
+      if (String(eq.taille) !== strTaille) return false;
       const range = parseTailleEnfantRange(eq.tailleEnfant);
       if (!range || measure === null) return true;
       return measure >= range.min && measure < range.max;
@@ -343,8 +348,9 @@ function populateGridSizes(index, type) {
 
     if (isRecommended || showAllSizesOverride) {
       const opt = document.createElement("option");
-      opt.value = taille;
-      opt.textContent = isRecommended ? `${taille} (Préconisé)` : `${taille} (Hors plage)`;
+      // Attribution sécurisée sans risque de casser le HTML
+      opt.value = strTaille;
+      opt.textContent = isRecommended ? `${strTaille} (Préconisé)` : `${strTaille} (Hors plage)`;
       if (isRecommended) opt.style.fontWeight = "bold";
       sizeSelect.appendChild(opt);
     }
@@ -372,14 +378,13 @@ function onGridSizeChange(index, type) {
     return;
   }
 
-  // Équipements filtrés par Type + Taille sélectionnée
+  // Équipements filtrés avec comparaison stricte sous forme de chaîne
   const matchingItems = allInventoryCache.filter(eq => 
     eq.type === type && 
-    eq.taille === selectedSize && 
+    String(eq.taille) === String(selectedSize) && 
     eq.statut === "en_stock"
   );
 
-  // Extraire les combinaisons uniques (Marque | Modèle)
   const availableModels = [...new Set(
     matchingItems.map(eq => `${eq.marque || 'Sans Marque'} | ${eq.modele || 'Modèle unique'}`)
   )];
@@ -391,7 +396,6 @@ function onGridSizeChange(index, type) {
     modelSelect.appendChild(opt);
   });
 
-  // Sélection automatique s'il n'y a qu'un seul modèle pour cette taille
   if (availableModels.length === 1) {
     modelSelect.value = availableModels[0];
     onGridModelChange(index, type);
@@ -440,10 +444,10 @@ async function assignAllEquipment(e) {
       const selectedSize = sizeSelect.value;
       const [marque, modele] = modelSelect.value.split(" | ");
 
-      // Recherche de la pièce physique exacte en stock
+      // Recherche sécurisée avec conversion String(eq.taille)
       const itemToAssign = allInventoryCache.find(eq => 
         eq.type === type && 
-        eq.taille === selectedSize && 
+        String(eq.taille) === String(selectedSize) && 
         (eq.marque || 'Sans Marque') === marque && 
         (eq.modele || 'Modèle unique') === modele && 
         eq.statut === "en_stock"
@@ -480,19 +484,6 @@ async function assignAllEquipment(e) {
   await batch.commit();
   await loadInventory();
   renderAttributionGrid();
-}
-async function returnEquipment(loanId, eqId) {
-  const batch = db.batch();
-
-  batch.update(db.collection("equipment").doc(eqId), { statut: "en_stock" });
-
-  batch.update(db.collection("loans").doc(loanId), {
-    statut: "restitue",
-    dateRestitution: firebase.firestore.FieldValue.serverTimestamp()
-  });
-
-  await batch.commit();
-  await loadInventory();
 }
 
 async function closeRemiseSession() {
