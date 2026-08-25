@@ -285,6 +285,8 @@ function toggleShowAllSizes(checkbox) {
   renderAttributionGrid();
 }
 
+// --- LOGIQUE D'ATTRIBUTION PAR TAILLE PUIS MODÈLE ---
+
 function renderAttributionGrid() {
   const tbody = document.getElementById("grid-attribution-body");
   if (!tbody) return;
@@ -299,7 +301,12 @@ function renderAttributionGrid() {
       </td>
       <td>
         <select id="grid-size-${index}" class="form-control" onchange="onGridSizeChange(${index}, '${type}')">
-          <option value="">-- Sélectionner une taille --</option>
+          <option value="">-- Choisir une taille --</option>
+        </select>
+      </td>
+      <td>
+        <select id="grid-model-${index}" class="form-control" onchange="onGridModelChange(${index}, '${type}')">
+          <option value="">-- Choisir une taille d'abord --</option>
         </select>
       </td>
       <td class="text-center">
@@ -317,31 +324,23 @@ function populateGridSizes(index, type) {
   if (!sizeSelect) return;
 
   const measure = getAdherentMeasureForType(type, currentAdherentC2);
-
-  // Filtrage du matériel disponible en stock
   const inStockEquipment = allInventoryCache.filter(eq => eq.type === type && eq.statut === "en_stock");
-
-  // Regroupement des tailles disponibles
   const availableSizes = [...new Set(inStockEquipment.map(eq => eq.taille))].filter(Boolean);
 
-  sizeSelect.innerHTML = '<option value="">-- Sélectionner une taille --</option>';
+  sizeSelect.innerHTML = '<option value="">-- Choisir une taille --</option>';
 
   let recommendedCount = 0;
 
   availableSizes.forEach(taille => {
-    // Vérifier si au moins une pièce de cette taille correspond au critère min <= mesure < max
     const isRecommended = inStockEquipment.some(eq => {
       if (eq.taille !== taille) return false;
-      
       const range = parseTailleEnfantRange(eq.tailleEnfant);
-      if (!range || measure === null) return true; // Si pas d'info de plage, on l'affiche par précaution
-
+      if (!range || measure === null) return true;
       return measure >= range.min && measure < range.max;
     });
 
     if (isRecommended) recommendedCount++;
 
-    // On affiche l'option si elle est recommandée OU si l'option de débrayage est activée
     if (isRecommended || showAllSizesOverride) {
       const opt = document.createElement("option");
       opt.value = taille;
@@ -354,24 +353,71 @@ function populateGridSizes(index, type) {
   if (recommendedCount === 0 && !showAllSizesOverride && availableSizes.length > 0) {
     const opt = document.createElement("option");
     opt.disabled = true;
-    opt.textContent = "Aucune taille préconisée en stock (Cocher 'Afficher tout')";
+    opt.textContent = "Aucune taille préconisée (Cocher 'Afficher tout')";
     sizeSelect.appendChild(opt);
   }
 }
 
 function onGridSizeChange(index, type) {
   const sizeSelect = document.getElementById(`grid-size-${index}`);
+  const modelSelect = document.getElementById(`grid-model-${index}`);
   const stockSpan = document.getElementById(`grid-stock-${index}`);
+  
   const selectedSize = sizeSelect.value;
+  modelSelect.innerHTML = '<option value="">-- Choisir un modèle --</option>';
+  stockSpan.textContent = "-";
 
   if (!selectedSize) {
+    modelSelect.innerHTML = '<option value="">-- Choisir une taille d\'abord --</option>';
+    return;
+  }
+
+  // Équipements filtrés par Type + Taille sélectionnée
+  const matchingItems = allInventoryCache.filter(eq => 
+    eq.type === type && 
+    eq.taille === selectedSize && 
+    eq.statut === "en_stock"
+  );
+
+  // Extraire les combinaisons uniques (Marque | Modèle)
+  const availableModels = [...new Set(
+    matchingItems.map(eq => `${eq.marque || 'Sans Marque'} | ${eq.modele || 'Modèle unique'}`)
+  )];
+
+  availableModels.forEach(m => {
+    const opt = document.createElement("option");
+    opt.value = m;
+    opt.textContent = m;
+    modelSelect.appendChild(opt);
+  });
+
+  // Sélection automatique s'il n'y a qu'un seul modèle pour cette taille
+  if (availableModels.length === 1) {
+    modelSelect.value = availableModels[0];
+    onGridModelChange(index, type);
+  }
+}
+
+function onGridModelChange(index, type) {
+  const sizeSelect = document.getElementById(`grid-size-${index}`);
+  const modelSelect = document.getElementById(`grid-model-${index}`);
+  const stockSpan = document.getElementById(`grid-stock-${index}`);
+
+  const selectedSize = sizeSelect.value;
+  const selectedModelStr = modelSelect.value;
+
+  if (!selectedSize || !selectedModelStr) {
     stockSpan.textContent = "-";
     return;
   }
 
+  const [marque, modele] = selectedModelStr.split(" | ");
+
   const count = allInventoryCache.filter(eq => 
     eq.type === type && 
     eq.taille === selectedSize && 
+    (eq.marque || 'Sans Marque') === marque && 
+    (eq.modele || 'Modèle unique') === modele && 
     eq.statut === "en_stock"
   ).length;
 
@@ -388,14 +434,18 @@ async function assignAllEquipment(e) {
   for (let i = 0; i < EQUIPMENT_TYPES.length; i++) {
     const type = EQUIPMENT_TYPES[i];
     const sizeSelect = document.getElementById(`grid-size-${i}`);
+    const modelSelect = document.getElementById(`grid-model-${i}`);
 
-    if (sizeSelect && sizeSelect.value) {
+    if (sizeSelect && modelSelect && sizeSelect.value && modelSelect.value) {
       const selectedSize = sizeSelect.value;
+      const [marque, modele] = modelSelect.value.split(" | ");
 
-      // Recherche du premier équipement disponible correspondant au type et à la taille
+      // Recherche de la pièce physique exacte en stock
       const itemToAssign = allInventoryCache.find(eq => 
         eq.type === type && 
         eq.taille === selectedSize && 
+        (eq.marque || 'Sans Marque') === marque && 
+        (eq.modele || 'Modèle unique') === modele && 
         eq.statut === "en_stock"
       );
 
@@ -423,7 +473,7 @@ async function assignAllEquipment(e) {
   }
 
   if (itemsAssignedCount === 0) {
-    alert("Veuillez sélectionner au moins une taille d'équipement.");
+    alert("Veuillez sélectionner au moins un équipement complet (Taille + Modèle).");
     return;
   }
 
@@ -431,7 +481,6 @@ async function assignAllEquipment(e) {
   await loadInventory();
   renderAttributionGrid();
 }
-
 async function returnEquipment(loanId, eqId) {
   const batch = db.batch();
 
