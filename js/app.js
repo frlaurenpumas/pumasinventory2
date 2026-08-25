@@ -7,6 +7,12 @@ let showAllSizesOverride = false; // Option de débrayage
 // Initialisation au chargement de la page
 document.addEventListener("DOMContentLoaded", () => {
   console.log("[DEBUG] Application initialisée.");
+  
+  const searchInput = document.getElementById("c1-search");
+  if (searchInput) {
+    searchInput.value = "";
+  }
+
   populatePointureOptions();
   listenToQueueC2();
 });
