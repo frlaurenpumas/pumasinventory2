@@ -15,6 +15,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   populatePointureOptions();
   listenToQueueC2();
+  loadAllAdherentsC1();
 });
 
 // --- GESTION DES ONGLETS ---
@@ -108,6 +109,45 @@ function resetAdherentForm() {
   document.getElementById("adh-id").value = "";
   document.getElementById("form-adherent").reset();
   document.getElementById("c1-search-results").innerHTML = "";
+}
+
+// Affiche tous les adhérents triés par nom puis prénom en temps réel (Consultation seule)
+function loadAllAdherentsC1() {
+  db.collection("adherents")
+    .orderBy("nom", "asc")
+    .onSnapshot(snapshot => {
+      const tbody = document.getElementById("c1-adherents-list-body");
+      if (!tbody) return;
+      
+      tbody.innerHTML = "";
+
+      if (snapshot.empty) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center">Aucun adhérent en base.</td></tr>';
+        return;
+      }
+
+      // Récupération et tri secondaire JS sur le prénom (Firestore ne trie que sur le 1er champ sans index composé)
+      const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      list.sort((a, b) => {
+        const nomCompare = (a.nom || "").localeCompare(b.nom || "", 'fr', { sensitivity: 'base' });
+        if (nomCompare !== 0) return nomCompare;
+        return (a.prenom || "").localeCompare(b.prenom || "", 'fr', { sensitivity: 'base' });
+      });
+
+      list.forEach(adh => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><strong>${(adh.nom || "").toUpperCase()}</strong></td>
+          <td>${adh.prenom || ""}</td>
+          <td>${adh.categorie || "-"}</td>
+          <td>${adh.dateNaissance || "-"}</td>
+          <td>${adh.pointure || "-"}</td>
+          <td>${adh.tailleMainInch || "-"}</td>
+          <td><span class="badge">${adh.statut || "Nouveau"}</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    });
 }
 
 async function saveAndSendToComptoir2(e) {
