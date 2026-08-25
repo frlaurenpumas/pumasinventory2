@@ -1,219 +1,531 @@
-import { db, collection, addDoc, updateDoc, doc, serverTimestamp, query, where, onSnapshot, getDocs } from './firebase-config.js';
+// Variable d'état globale
+let currentAdherentC2 = null;
+let allInventoryCache = [];
+let assignedEquipmentCache = [];
 
-let currentAdherentId = null;
-
-// ==========================================
-// COMPTOIR 1 : ENREGISTREMENT & ENVOI
-// ==========================================
-const formC1 = document.getElementById('form-c1');
-if (formC1) {
-  formC1.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const payload = {
-      nom: document.getElementById('c1-nom').value.trim().toUpperCase(),
-      prenom: document.getElementById('c1-prenom').value.trim(),
-      date_naissance: document.getElementById('c1-dob').value,
-      categorie: document.getElementById('c1-categorie').value,
-      taille_cm: parseInt(document.getElementById('c1-taille-cm').value) || null,
-      taille_main_inch: document.getElementById('c1-taille-main').value || null,
-      pointure: parseInt(document.getElementById('c1-pointure').value) || null,
-      statut_remise: "en_attente_comptoir_2",
-      date_maj: serverTimestamp()
-    };
-
-    try {
-      await addDoc(collection(db, "adherents"), payload);
-      alert("Adhérent envoyé au Comptoir 2 !");
-      formC1.reset();
-    } catch (err) {
-      console.error("Erreur ajout adhérent :", err);
-    }
-  });
-}
-
-// ==========================================
-// COMPTOIR 2 : ÉCOUTE EN TEMPS RÉEL (QUEUE)
-// ==========================================
-const qAdherents = query(
-  collection(db, "adherents"), 
-  where("statut_remise", "==", "en_attente_comptoir_2")
-);
-
-onSnapshot(qAdherents, (snapshot) => {
-  const fileContainer = document.getElementById('file-attente');
-  const countBadge = document.getElementById('queue-count');
-  fileContainer.innerHTML = '';
-  countBadge.textContent = snapshot.docs.length;
-
-  snapshot.forEach((docSnap) => {
-    const data = docSnap.data();
-    const item = document.createElement('div');
-    item.className = "p-3 border rounded-lg hover:bg-blue-50 cursor-pointer transition flex justify-between items-center bg-slate-50";
-    item.innerHTML = `
-      <div>
-        <p class="font-bold text-slate-800">${data.nom} ${data.prenom}</p>
-        <span class="text-xs bg-slate-200 px-2 py-0.5 rounded text-slate-600">${data.categorie}</span>
-      </div>
-      <span class="text-blue-600 font-bold text-sm">Choisir ➔</span>
-    `;
-    item.onclick = () => chargerAdherent(docSnap.id, data);
-    fileContainer.appendChild(item);
-  });
+// Initialisation au chargement de la page
+document.addEventListener("DOMContentLoaded", () => {
+  console.log("[DEBUG] Application initialisée.");
+  populatePointureOptions();
+  listenToQueueC2();
 });
 
-// Charger l'adhérent dans la zone d'attribution
-function chargerAdherent(id, data) {
-  currentAdherentId = id;
-  document.getElementById('aucun-selectionne').classList.add('hidden');
-  document.getElementById('zone-attribution').classList.remove('hidden');
-
-  document.getElementById('c2-adh-nom').textContent = `${data.nom} ${data.prenom}`;
-  document.getElementById('c2-adh-infos').textContent = `Catégorie: ${data.categorie} | Né(e) le: ${data.date_naissance}`;
+// --- GESTION DES ONGLETS ---
+function switchTab(tabId, e) {
+  console.log(`[DEBUG] Navigation vers l'onglet : ${tabId}`);
   
-  document.getElementById('rep-taille').textContent = data.taille_cm || '-';
-  document.getElementById('rep-main').textContent = data.taille_main_inch || '-';
-  document.getElementById('rep-pointure').textContent = data.pointure || '-';
-
-  chargerEquipementsAttribues(id);
+  // Masque tous les contenus d'onglets
+  document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
+  
+  // Retire le style actif de tous les boutons
+  document.querySelectorAll(".tab-btn").forEach(el => el.classList.remove("active"));
+  
+  // Affiche l'onglet ciblé
+  const targetTab = document.getElementById(tabId);
+  if (targetTab) {
+    targetTab.classList.add("active");
+  }
+  
+  // Active le bouton cliqué s'il existe
+  if (e && e.currentTarget) {
+    e.currentTarget.classList.add("active");
+  }
 }
 
-// ==========================================
-// COMPTOIR 2 : SÉLECTION DU MATÉRIEL EN STOCK
-// ==========================================
-const typeSelect = document.getElementById('c2-type-equipement');
-const eqSelect = document.getElementById('c2-equipement-select');
+function populatePointureOptions() {
+  const select = document.getElementById("adh-pointure");
+  for (let i = 28; i <= 40; i++) {
+    const opt = document.createElement("option");
+    opt.value = i;
+    opt.textContent = i;
+    select.appendChild(opt);
+  }
+}
 
-typeSelect.addEventListener('change', async () => {
-  const type = typeSelect.value;
-  eqSelect.innerHTML = '<option value="">Chargement du stock...</option>';
+// --- COMPTOIR 1 : ACCUEIL & MESURES ---
 
-  if (!type) return;
+function calculateCategory() {
+  const dobInput = document.getElementById("adh-dob").value;
+  if (!dobInput) return;
 
-  const qStock = query(
-    collection(db, "equipements"),
-    where("type_equipement", "==", type),
-    where("statut", "==", "en_stock")
-  );
+  const birthYear = new Date(dobInput).getFullYear();
+  const currentYear = new Date().getFullYear();
+  const age = currentYear - birthYear;
+  
+  let cat = "";
+  if (age >= 4 && age <= 5) cat = "EDH";
+  else if (age <= 7) cat = "U7";
+  else if (age <= 9) cat = "U9";
+  else if (age <= 11) cat = "U11";
+  else if (age <= 13) cat = "U13";
+  else if (age <= 15) cat = "U15";
+  else if (age <= 18) cat = "U18";
+  else cat = "Sénior";
 
-  const snap = await getDocs(qStock);
-  eqSelect.innerHTML = '<option value="">-- Sélectionner l'équipement --</option>';
+  document.getElementById("adh-categorie").value = cat;
+  console.log(`[DEBUG] Calcul automatique catégorie pour âge ${age} : ${cat}`);
+}
 
-  snap.forEach(docSnap => {
-    const d = docSnap.data();
-    const opt = document.createElement('option');
-    opt.value = docSnap.id;
-    opt.textContent = `${d.marque} ${d.modele} — Taille ${d.taille}`;
-    eqSelect.appendChild(opt);
+async function onSearchAdherent(query) {
+  const listEl = document.getElementById("c1-search-results");
+  listEl.innerHTML = "";
+  if (query.length < 2) return;
+
+  console.log(`[DEBUG] Recherche adhérent : "${query}"`);
+  const snapshot = await db.collection("adherents").get();
+  const results = snapshot.docs
+    .map(doc => ({ id: doc.id, ...doc.data() }))
+    .filter(a => `${a.nom} ${a.prenom}`.toLowerCase().includes(query.toLowerCase()));
+
+  results.forEach(adh => {
+    const li = document.createElement("li");
+    li.textContent = `${adh.nom.toUpperCase()} ${adh.prenom} (${adh.categorie || 'SANS CAT'})`;
+    li.onclick = () => fillAdherentForm(adh);
+    listEl.appendChild(li);
   });
-});
+}
 
-// Assignation du matériel
-const formC2 = document.getElementById('form-c2');
-formC2.addEventListener('submit', async (e) => {
+function fillAdherentForm(adh) {
+  console.log("[DEBUG] Chargement de l'adhérent dans le formulaire:", adh);
+  document.getElementById("adh-id").value = adh.id;
+  document.getElementById("adh-nom").value = adh.nom || "";
+  document.getElementById("adh-prenom").value = adh.prenom || "";
+  document.getElementById("adh-dob").value = adh.dateNaissance || "";
+  document.getElementById("adh-categorie").value = adh.categorie || "";
+  document.getElementById("adh-taille-cm").value = adh.tailleCm || "";
+  document.getElementById("adh-tete-cm").value = adh.tourTeteCm || "";
+  document.getElementById("adh-main-inch").value = adh.tailleMainInch || "";
+  document.getElementById("adh-pointure").value = adh.pointure || "";
+  document.getElementById("c1-search-results").innerHTML = "";
+}
+
+function resetAdherentForm() {
+  console.log("[DEBUG] Réinitialisation du formulaire adhérent.");
+  document.getElementById("adh-id").value = "";
+  document.getElementById("form-adherent").reset();
+  document.getElementById("c1-search-results").innerHTML = "";
+}
+
+async function saveAndSendToComptoir2(e) {
   e.preventDefault();
-  const eqId = eqSelect.value;
-  if (!eqId || !currentAdherentId) return;
+  const id = document.getElementById("adh-id").value;
+  
+  const payload = {
+    nom: document.getElementById("adh-nom").value.trim(),
+    prenom: document.getElementById("adh-prenom").value.trim(),
+    dateNaissance: document.getElementById("adh-dob").value,
+    categorie: document.getElementById("adh-categorie").value,
+    tailleCm: Number(document.getElementById("adh-taille-cm").value) || null,
+    tourTeteCm: Number(document.getElementById("adh-tete-cm").value) || null,
+    tailleMainInch: document.getElementById("adh-main-inch").value,
+    pointure: document.getElementById("adh-pointure").value,
+    statut: "En attente de matériel",
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
 
-  // 1. Enregistrer l'action dans la table intermédiaire avec horodatage
-  await addDoc(collection(db, "distributions"), {
-    adherent_id: currentAdherentId,
-    equipement_id: eqId,
-    type_action: "attribution",
-    date_heure: serverTimestamp(),
-    statut_pret: "actif"
+  if (id) {
+    await db.collection("adherents").doc(id).update(payload);
+    console.log(`[DEBUG] Adhérent mis à jour (ID: ${id}) et statut "En attente de matériel"`);
+  } else {
+    const docRef = await db.collection("adherents").add(payload);
+    console.log(`[DEBUG] Nouvel adhérent créé (ID: ${docRef.id}) et envoyé au Comptoir 2`);
+  }
+
+  alert("Fiche validée et transmise au Comptoir 2 !");
+  resetAdherentForm();
+}
+
+// --- COMPTOIR 2 : DISTRIBUTION & ÉCHANGES ---
+
+function listenToQueueC2() {
+  console.log("[DEBUG] Écoute temps réel de la file d'attente (Comptoir 2)...");
+  db.collection("adherents")
+    .where("statut", "==", "En attente de matériel")
+    .onSnapshot(snapshot => {
+      const queueList = document.getElementById("c2-queue");
+      queueList.innerHTML = "";
+      
+      snapshot.forEach(doc => {
+        const adh = { id: doc.id, ...doc.data() };
+        const li = document.createElement("li");
+        li.className = `queue-item ${currentAdherentC2 && currentAdherentC2.id === adh.id ? 'active' : ''}`;
+        li.innerHTML = `<strong>${adh.nom.toUpperCase()} ${adh.prenom}</strong><br><small>${adh.categorie || ''}</small>`;
+        li.onclick = () => selectAdherentC2(adh);
+        queueList.appendChild(li);
+      });
+    });
+}
+
+async function selectAdherentC2(adh) {
+  console.log("[DEBUG] Adhérent sélectionné au Comptoir 2:", adh);
+  currentAdherentC2 = adh;
+  document.getElementById("c2-workarea").style.display = "block";
+  document.getElementById("c2-adh-fullname").textContent = `${adh.nom} ${adh.prenom}`;
+  document.getElementById("c2-adh-cat").textContent = adh.categorie || "N/A";
+
+  document.getElementById("c2-adh-measures").innerHTML = `
+    Taille: <b>${adh.tailleCm || '-'} cm</b> | Tête: <b>${adh.tourTeteCm || '-'} cm</b><br>
+    Main: <b>${adh.tailleMainInch || '-'}</b> | Pointure: <b>${adh.pointure || '-'}</b>
+  `;
+
+  await loadInventory();
+  listenToAssignedEquipment(adh.id);
+}
+
+function listenToAssignedEquipment(adhId) {
+  console.log(`[DEBUG] Écoute des équipements attribués à l'adhérent ${adhId}`);
+  db.collection("loans")
+    .where("adhId", "==", adhId)
+    .where("statut", "==", "attribue")
+    .onSnapshot(snapshot => {
+      assignedEquipmentCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      renderAssignedTable();
+      checkPackAndAlerts();
+    });
+}
+
+function renderAssignedTable() {
+  const tbody = document.getElementById("c2-assigned-table");
+  tbody.innerHTML = "";
+  
+  assignedEquipmentCache.forEach(item => {
+    const tr = document.createElement("tr");
+    const dateStr = item.dateRemise ? new Date(item.dateRemise.toDate()).toLocaleString("fr-FR") : "-";
+    tr.innerHTML = `
+      <td>${item.type}</td>
+      <td>${item.marque} ${item.modele}</td>
+      <td>${item.taille}</td>
+      <td>${dateStr}</td>
+      <td><button class="btn btn-danger" onclick="returnEquipment('${item.id}', '${item.eqId}')">Échanger / Restituer</button></td>
+    `;
+    tbody.appendChild(tr);
   });
+}
 
-  // 2. Mettre à jour l'état de l'équipement
-  await updateDoc(doc(db, "equipements", eqId), {
-    statut: "attribue",
-    adherent_actuel_id: currentAdherentId
+function checkPackAndAlerts() {
+  if (!currentAdherentC2) return;
+  const isEDH = currentAdherentC2.categorie === "EDH";
+  
+  // Définition du pack
+  const basePack = ["Casque", "Plastron", "Coudières", "Culotte", "Jambières", "Patins", "Sac"];
+  if (isEDH) basePack.push("Maillot");
+  else basePack.push("Crosse");
+
+  const requiredItems = ["Casque", "Plastron", "Coudières", "Culotte", "Jambières", "Patins"];
+  
+  const assignedTypes = assignedEquipmentCache.map(i => i.type);
+  
+  // Progression pack
+  const countAssigned = basePack.filter(type => assignedTypes.includes(type)).length;
+  const pct = Math.round((countAssigned / basePack.length) * 100);
+  document.getElementById("c2-pack-progress").style.width = `${pct}%`;
+  document.getElementById("c2-pack-count").textContent = `${countAssigned} / ${basePack.length} pièces attribuées (${pct}%)`;
+
+  // Alertes
+  const alertsContainer = document.getElementById("c2-alerts");
+  alertsContainer.innerHTML = "";
+
+  // 1. Doublons
+  const duplicates = assignedTypes.filter((item, index) => assignedTypes.indexOf(item) !== index);
+  if (duplicates.length > 0) {
+    alertsContainer.innerHTML += `<div class="alert alert-danger">⚠️ Doublon détecté : ${[...new Set(duplicates)].join(", ")}</div>`;
+  }
+
+  // 2. Manquants obligatoires
+  const missing = requiredItems.filter(type => !assignedTypes.includes(type));
+  if (missing.length > 0) {
+    alertsContainer.innerHTML += `<div class="alert alert-warning">⚠️ Équipements obligatoires manquants : ${missing.join(", ")}</div>`;
+  }
+}
+
+async function loadInventory() {
+  console.log("[DEBUG] Chargement complet de l'inventaire matériel...");
+  const snapshot = await db.collection("equipment").get();
+  allInventoryCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
+function onEqTypeChange() {
+  const selectedType = document.getElementById("attr-type").value;
+  const modelSelect = document.getElementById("attr-model");
+  modelSelect.innerHTML = '<option value="">-- Choisir --</option>';
+  document.getElementById("attr-size").innerHTML = '<option value="">-- Choisir un modèle --</option>';
+  document.getElementById("stock-count").textContent = "-";
+
+  if (!selectedType) return;
+
+  const availableModels = [...new Set(
+    allInventoryCache
+      .filter(eq => eq.type === selectedType && eq.statut === "en_stock")
+      .map(eq => `${eq.marque} | ${eq.modele}`)
+  )];
+
+  availableModels.forEach(m => {
+    const opt = document.createElement("option");
+    opt.value = m;
+    opt.textContent = m;
+    modelSelect.appendChild(opt);
   });
+}
 
-  formC2.reset();
-  eqSelect.innerHTML = '<option value="">-- Sélectionner le type d'abord --</option>';
-  chargerEquipementsAttribues(currentAdherentId);
-});
+function onEqModelChange() {
+  const selectedType = document.getElementById("attr-type").value;
+  const selectedModelStr = document.getElementById("attr-model").value;
+  const sizeSelect = document.getElementById("attr-size");
+  sizeSelect.innerHTML = '<option value="">-- Choisir --</option>';
+  document.getElementById("stock-count").textContent = "-";
 
-// Afficher le matériel actuellement prêté à l'adhérent
-async function chargerEquipementsAttribues(adhId) {
-  const container = document.getElementById('liste-equipements-attribues');
-  container.innerHTML = '<tr><td colspan="4" class="p-2 text-slate-400">Chargement...</td></tr>';
+  if (!selectedModelStr) return;
+  const [marque, modele] = selectedModelStr.split(" | ");
 
-  const qDist = query(
-    collection(db, "distributions"),
-    where("adherent_id", "==", adhId),
-    where("statut_pret", "==", "actif")
+  const availableSizes = [...new Set(
+    allInventoryCache
+      .filter(eq => eq.type === selectedType && eq.marque === marque && eq.modele === modele && eq.statut === "en_stock")
+      .map(eq => eq.taille)
+  )];
+
+  availableSizes.forEach(s => {
+    const opt = document.createElement("option");
+    opt.value = s;
+    opt.textContent = s;
+    sizeSelect.appendChild(opt);
+  });
+}
+
+function onEqSizeChange() {
+  const selectedType = document.getElementById("attr-type").value;
+  const selectedModelStr = document.getElementById("attr-model").value;
+  const selectedSize = document.getElementById("attr-size").value;
+
+  if (!selectedSize) {
+    document.getElementById("stock-count").textContent = "-";
+    return;
+  }
+  const [marque, modele] = selectedModelStr.split(" | ");
+
+  const count = allInventoryCache.filter(eq => 
+    eq.type === selectedType && 
+    eq.marque === marque && 
+    eq.modele === modele && 
+    eq.taille === selectedSize && 
+    eq.statut === "en_stock"
+  ).length;
+
+  document.getElementById("stock-count").textContent = count;
+}
+
+async function assignEquipment(e) {
+  e.preventDefault();
+  if (!currentAdherentC2) return;
+
+  const type = document.getElementById("attr-type").value;
+  const [marque, modele] = document.getElementById("attr-model").value.split(" | ");
+  const taille = document.getElementById("attr-size").value;
+
+  const itemToAssign = allInventoryCache.find(eq => 
+    eq.type === type && eq.marque === marque && eq.modele === modele && eq.taille === taille && eq.statut === "en_stock"
   );
 
-  const snapDist = await getDocs(qDist);
-  container.innerHTML = '';
-
-  if (snapDist.empty) {
-    container.innerHTML = '<tr><td colspan="4" class="p-2 text-slate-400">Aucun matériel prêté pour le moment.</td></tr>';
+  if (!itemToAssign) {
+    alert("Pièce non disponible en stock.");
     return;
   }
 
-  for (const docDist of snapDist.docs) {
-    const distData = docDist.data();
-    const eqSnap = await getDocs(query(collection(db, "equipements"), where("__name__", "==", distData.equipement_id)));
-    
-    if (!eqSnap.empty) {
-      const eq = eqSnap.docs[0].data();
-      const tr = document.createElement('tr');
-      tr.className = "border-b text-sm";
-      tr.innerHTML = `
-        <td class="p-2 font-medium">${eq.type_equipement}</td>
-        <td class="p-2">${eq.marque} ${eq.modele}</td>
-        <td class="p-2">${eq.taille}</td>
-        <td class="p-2 text-right">
-          <button onclick="restituerMateriel('${docDist.id}', '${distData.equipement_id}')" class="text-red-600 hover:text-red-800 font-semibold text-xs">
-            Restituer / Échanger
-          </button>
-        </td>
-      `;
-      container.appendChild(tr);
-    }
-  }
+  const batch = db.batch();
+
+  // 1. Passer le matériel en "attribue"
+  const eqRef = db.collection("equipment").doc(itemToAssign.id);
+  batch.update(eqRef, { statut: "attribue" });
+
+  // 2. Enregistrer la transaction horodatée dans "loans"
+  const loanRef = db.collection("loans").doc();
+  batch.set(loanRef, {
+    adhId: currentAdherentC2.id,
+    eqId: itemToAssign.id,
+    type, marque, modele, taille,
+    statut: "attribue",
+    dateRemise: firebase.firestore.FieldValue.serverTimestamp(),
+    dateRestitution: null
+  });
+
+  await batch.commit();
+  console.log(`[DEBUG] Matériel ${itemToAssign.id} attribué à l'adhérent ${currentAdherentC2.id}`);
+
+  document.getElementById("form-attribution").reset();
+  document.getElementById("stock-count").textContent = "-";
+  await loadInventory();
 }
 
-// Restituer du matériel (Gestion de l'échange)
-window.restituerMateriel = async (distId, equipementId) => {
-  if (!confirm("Voulez-vous réintégrer cet équipement au stock ?")) return;
+async function returnEquipment(loanId, eqId) {
+  console.log(`[DEBUG] Restitution du prêt ${loanId} (Équipement ${eqId})`);
+  const batch = db.batch();
 
-  // 1. Clôturer l'attribution
-  await updateDoc(doc(db, "distributions", distId), {
-    statut_pret: "cloture"
+  // 1. Remettre l'équipement en stock
+  batch.update(db.collection("equipment").doc(eqId), { statut: "en_stock" });
+
+  // 2. Clôturer le prêt horodaté
+  batch.update(db.collection("loans").doc(loanId), {
+    statut: "restitue",
+    dateRestitution: firebase.firestore.FieldValue.serverTimestamp()
   });
 
-  // 2. Traçabilité : ajouter la ligne de restitution horodatée
-  await addDoc(collection(db, "distributions"), {
-    adherent_id: currentAdherentId,
-    equipement_id: equipementId,
-    type_action: "restitution",
-    date_heure: serverTimestamp(),
-    statut_pret: "cloture"
+  await batch.commit();
+  console.log(`[DEBUG] Restitution exécutée. Réactualisation inventaire...`);
+  await loadInventory();
+}
+
+async function closeRemiseSession() {
+  if (!currentAdherentC2) return;
+  console.log(`[DEBUG] Clôture session pour l'adhérent ${currentAdherentC2.id}`);
+
+  await db.collection("adherents").doc(currentAdherentC2.id).update({
+    statut: "Équipé",
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   });
 
-  // 3. Remettre l'équipement en stock
-  await updateDoc(doc(db, "equipements", equipementId), {
-    statut: "en_stock",
-    adherent_actuel_id: null
+  alert(`Session clôturée pour ${currentAdherentC2.nom} ${currentAdherentC2.prenom}. Statut passé à "Équipé".`);
+  document.getElementById("c2-workarea").style.display = "none";
+  currentAdherentC2 = null;
+}
+
+// --- ADMIN / IMPORT & EXPORT CSV (PapaParse) ---
+
+function importAdherentsCSV() {
+  const fileInput = document.getElementById("csv-adh-file");
+  if (!fileInput.files[0]) return alert("Veuillez choisir un fichier CSV.");
+
+  console.log("[DEBUG] Début import CSV Adhérents...");
+  // Ne pas fixer "delimiter" selon la consigne
+  Papa.parse(fileInput.files[0], {
+    header: true,
+    skipEmptyLines: true,
+    complete: async (results) => {
+      console.log(`[DEBUG] CSV Adhérents analysé. ${results.data.length} lignes trouvées.`, results.data);
+      const batch = db.batch();
+      
+      results.data.forEach(row => {
+        const docRef = db.collection("adherents").doc();
+        batch.set(docRef, {
+          nom: row["Nom"] || "",
+          prenom: row["Prénom"] || "",
+          dateNaissance: row["Date Naissance"] || "",
+          categorie: row["Catégorie"] || "",
+          tailleCm: Number(row["Taille (cm)"]) || null,
+          tourTeteCm: Number(row["Tour de tête (cm)"]) || null,
+          tailleMainInch: row["Taille Main(inch)"] || "",
+          pointure: row["Pointure"] || "",
+          statut: "Nouveau",
+          importedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      });
+
+      await batch.commit();
+      alert(`Importation réussie : ${results.data.length} adhérents ajoutés.`);
+      console.log("[DEBUG] Importation adhérents Firestore terminée.");
+    }
+  });
+}
+
+function importInventoryCSV() {
+  const fileInput = document.getElementById("csv-eq-file");
+  if (!fileInput.files[0]) return alert("Veuillez choisir un fichier CSV.");
+
+  console.log("[DEBUG] Début import CSV Matériel...");
+  Papa.parse(fileInput.files[0], {
+    header: true,
+    skipEmptyLines: true,
+    complete: async (results) => {
+      console.log(`[DEBUG] CSV Matériel analysé. ${results.data.length} lignes trouvées.`, results.data);
+      const batch = db.batch();
+
+      results.data.forEach(row => {
+        const docRef = db.collection("equipment").doc();
+        batch.set(docRef, {
+          type: row["Type équipement"] || "",
+          marque: row["Marque"] || "",
+          modele: row["Modèle"] || "",
+          taille: row["Taille"] || "",
+          tailleEnfant: row["Taille enfant"] || "",
+          statut: "en_stock",
+          importedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      });
+
+      await batch.commit();
+      alert(`Importation réussie : ${results.data.length} équipements ajoutés.`);
+      console.log("[DEBUG] Importation inventaire Firestore terminée.");
+    }
+  });
+}
+
+async function exportAdherentsCSV() {
+  console.log("[DEBUG] Exportation Adhérents en CSV...");
+  const snapshot = await db.collection("adherents").get();
+  const data = snapshot.docs.map(doc => {
+    const d = doc.data();
+    return {
+      "Nom": d.nom,
+      "Prénom": d.prenom,
+      "Date Naissance": d.dateNaissance,
+      "Catégorie": d.categorie,
+      "Taille (cm)": d.tailleCm,
+      "Tour de tête (cm)": d.tourTeteCm,
+      "Taille Main(inch)": d.tailleMainInch,
+      "Pointure": d.pointure,
+      "Statut": d.statut
+    };
   });
 
-  chargerEquipementsAttribues(currentAdherentId);
-};
+  downloadCSV(data, "export_adherents.csv");
+}
 
-// Clôturer la session de l'adhérent
-window.cloturerSession = async () => {
-  if (!currentAdherentId) return;
-
-  await updateDoc(doc(db, "adherents", currentAdherentId), {
-    statut_remise: "termine",
-    date_maj: serverTimestamp()
+async function exportInventoryCSV() {
+  console.log("[DEBUG] Exportation Matériel en CSV...");
+  const snapshot = await db.collection("equipment").get();
+  const data = snapshot.docs.map(doc => {
+    const d = doc.data();
+    return {
+      "Type équipement": d.type,
+      "Marque": d.marque,
+      "Modèle": d.modele,
+      "Taille": d.taille,
+      "Taille enfant": d.tailleEnfant,
+      "Statut": d.statut
+    };
   });
 
-  document.getElementById('zone-attribution').classList.add('hidden');
-  document.getElementById('aucun-selectionne').classList.remove('hidden');
-  currentAdherentId = null;
-};
+  downloadCSV(data, "export_inventaire_materiel.csv");
+}
+
+async function exportLoansCSV() {
+  console.log("[DEBUG] Exportation Registre des Prêts en CSV...");
+  const snapshot = await db.collection("loans").get();
+  const data = snapshot.docs.map(doc => {
+    const d = doc.data();
+    return {
+      "ID Prêt": doc.id,
+      "ID Adhérent": d.adhId,
+      "ID Équipement": d.eqId,
+      "Type": d.type,
+      "Marque": d.marque,
+      "Modèle": d.modele,
+      "Taille": d.taille,
+      "Statut": d.statut,
+      "Date Remise": d.dateRemise ? new Date(d.dateRemise.toDate()).toISOString() : "",
+      "Date Restitution": d.dateRestitution ? new Date(d.dateRestitution.toDate()).toISOString() : ""
+    };
+  });
+
+  downloadCSV(data, "export_registre_prets_horodate.csv");
+}
+
+function downloadCSV(data, filename) {
+  const csv = Papa.unparse(data, { delimiter: ";" });
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.setAttribute("download", filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  console.log(`[DEBUG] Fichier CSV généré et téléchargé : ${filename}`);
+}
