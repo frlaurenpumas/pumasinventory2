@@ -177,6 +177,7 @@ async function selectAdherentC2(adh) {
   `;
 
   await loadInventory();
+  renderAttributionGrid(); // <--- AJOUTER CETTE LIGNE
   listenToAssignedEquipment(adh.id);
 }
 
@@ -252,21 +253,64 @@ async function loadInventory() {
   allInventoryCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
-function onEqTypeChange() {
-  const selectedType = document.getElementById("attr-type").value;
-  const modelSelect = document.getElementById("attr-model");
-  modelSelect.innerHTML = '<option value="">-- Choisir --</option>';
-  document.getElementById("attr-size").innerHTML = '<option value="">-- Choisir un modèle --</option>';
-  document.getElementById("stock-count").textContent = "-";
+// --- NOUVELLE LOGIQUE D'ATTRIBUTION EN GRILLE (8/10 LIGNES) ---
 
-  if (!selectedType) return;
+const EQUIPMENT_TYPES = [
+  "Casque",
+  "Plastron",
+  "Coudières",
+  "Gants",
+  "Culotte",
+  "Jambières",
+  "Patins",
+  "Crosse",
+  "Maillot",
+  "Sac"
+];
+
+function renderAttributionGrid() {
+  const tbody = document.getElementById("grid-attribution-body");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+
+  EQUIPMENT_TYPES.forEach((type, index) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>
+        <strong>${type}</strong>
+        <input type="hidden" name="type_${index}" value="${type}">
+      </td>
+      <td>
+        <select id="grid-model-${index}" class="form-control" onchange="onGridModelChange(${index}, '${type}')">
+          <option value="">-- Ignorer / Sélectionner --</option>
+        </select>
+      </td>
+      <td>
+        <select id="grid-size-${index}" class="form-control" onchange="onGridSizeChange(${index}, '${type}')">
+          <option value="">-- Modèle d'abord --</option>
+        </select>
+      </td>
+      <td class="text-center">
+        <span id="grid-stock-${index}" class="badge-stock">-</span>
+      </td>
+    `;
+    tbody.appendChild(tr);
+
+    populateGridModels(index, type);
+  });
+}
+
+function populateGridModels(index, type) {
+  const modelSelect = document.getElementById(`grid-model-${index}`);
+  if (!modelSelect) return;
 
   const availableModels = [...new Set(
     allInventoryCache
-      .filter(eq => eq.type === selectedType && eq.statut === "en_stock")
+      .filter(eq => eq.type === type && eq.statut === "en_stock")
       .map(eq => `${eq.marque} | ${eq.modele}`)
   )];
 
+  modelSelect.innerHTML = '<option value="">-- Ignorer / Sélectionner --</option>';
   availableModels.forEach(m => {
     const opt = document.createElement("option");
     opt.value = m;
@@ -275,19 +319,22 @@ function onEqTypeChange() {
   });
 }
 
-function onEqModelChange() {
-  const selectedType = document.getElementById("attr-type").value;
-  const selectedModelStr = document.getElementById("attr-model").value;
-  const sizeSelect = document.getElementById("attr-size");
-  sizeSelect.innerHTML = '<option value="">-- Choisir --</option>';
-  document.getElementById("stock-count").textContent = "-";
+function onGridModelChange(index, type) {
+  const modelSelect = document.getElementById(`grid-model-${index}`);
+  const sizeSelect = document.getElementById(`grid-size-${index}`);
+  const stockSpan = document.getElementById(`grid-stock-${index}`);
+
+  const selectedModelStr = modelSelect.value;
+  sizeSelect.innerHTML = '<option value="">-- Sélectionner --</option>';
+  stockSpan.textContent = "-";
 
   if (!selectedModelStr) return;
+
   const [marque, modele] = selectedModelStr.split(" | ");
 
   const availableSizes = [...new Set(
     allInventoryCache
-      .filter(eq => eq.type === selectedType && eq.marque === marque && eq.modele === modele && eq.statut === "en_stock")
+      .filter(eq => eq.type === type && eq.marque === marque && eq.modele === modele && eq.statut === "en_stock")
       .map(eq => eq.taille)
   )];
 
@@ -299,40 +346,87 @@ function onEqModelChange() {
   });
 }
 
-function onEqSizeChange() {
-  const selectedType = document.getElementById("attr-type").value;
-  const selectedModelStr = document.getElementById("attr-model").value;
-  const selectedSize = document.getElementById("attr-size").value;
+function onGridSizeChange(index, type) {
+  const modelSelect = document.getElementById(`grid-model-${index}`);
+  const sizeSelect = document.getElementById(`grid-size-${index}`);
+  const stockSpan = document.getElementById(`grid-stock-${index}`);
 
-  if (!selectedSize) {
-    document.getElementById("stock-count").textContent = "-";
+  const selectedModelStr = modelSelect.value;
+  const selectedSize = sizeSelect.value;
+
+  if (!selectedModelStr || !selectedSize) {
+    stockSpan.textContent = "-";
     return;
   }
+
   const [marque, modele] = selectedModelStr.split(" | ");
 
   const count = allInventoryCache.filter(eq => 
-    eq.type === selectedType && 
+    eq.type === type && 
     eq.marque === marque && 
     eq.modele === modele && 
     eq.taille === selectedSize && 
     eq.statut === "en_stock"
   ).length;
 
-  document.getElementById("stock-count").textContent = count;
+  stockSpan.textContent = `${count} dispo`;
 }
 
-async function assignEquipment(e) {
+async function assignAllEquipment(e) {
   e.preventDefault();
   if (!currentAdherentC2) return;
 
-  const type = document.getElementById("attr-type").value;
-  const [marque, modele] = document.getElementById("attr-model").value.split(" | ");
-  const taille = document.getElementById("attr-size").value;
+  const batch = db.batch();
+  let itemsAssignedCount = 0;
 
-  const itemToAssign = allInventoryCache.find(eq => 
-    eq.type === type && eq.marque === marque && eq.modele === modele && eq.taille === taille && eq.statut === "en_stock"
-  );
+  for (let i = 0; i < EQUIPMENT_TYPES.length; i++) {
+    const type = EQUIPMENT_TYPES[i];
+    const modelSelect = document.getElementById(`grid-model-${i}`);
+    const sizeSelect = document.getElementById(`grid-size-${i}`);
 
+    if (modelSelect && sizeSelect && modelSelect.value && sizeSelect.value) {
+      const [marque, modele] = modelSelect.value.split(" | ");
+      const taille = sizeSelect.value;
+
+      const itemToAssign = allInventoryCache.find(eq => 
+        eq.type === type && 
+        eq.marque === marque && 
+        eq.modele === modele && 
+        eq.taille === taille && 
+        eq.statut === "en_stock"
+      );
+
+      if (itemToAssign) {
+        const eqRef = db.collection("equipment").doc(itemToAssign.id);
+        batch.update(eqRef, { statut: "attribue" });
+
+        const loanRef = db.collection("loans").doc();
+        batch.set(loanRef, {
+          adhId: currentAdherentC2.id,
+          eqId: itemToAssign.id,
+          type, marque, modele, taille,
+          statut: "attribue",
+          dateRemise: firebase.firestore.FieldValue.serverTimestamp(),
+          dateRestitution: null
+        });
+
+        itemToAssign.statut = "attribue";
+        itemsAssignedCount++;
+      }
+    }
+  }
+
+  if (itemsAssignedCount === 0) {
+    alert("Veuillez sélectionner au moins un équipement complet (Modèle + Taille).");
+    return;
+  }
+
+  await batch.commit();
+  console.log(`[DEBUG] ${itemsAssignedCount} équipements attribués à l'adhérent ${currentAdherentC2.id}`);
+
+  await loadInventory();
+  renderAttributionGrid();
+}
   if (!itemToAssign) {
     alert("Pièce non disponible en stock.");
     return;
