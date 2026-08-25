@@ -520,17 +520,25 @@ function importInventoryCSV() {
   Papa.parse(fileInput.files[0], {
     header: true,
     skipEmptyLines: true,
+    transformHeader: (h) => h.trim(), // Nettoie les espaces et caractères invisibles
     complete: async (results) => {
       const batch = db.batch();
 
       results.data.forEach(row => {
+        // Recherche tolérante selon les variations de clés possibles
+        const typeVal = row["Type équipement"] || row["Type equipement"] || row["Type"] || row["type"] || "";
+        const marqueVal = row["Marque"] || row["marque"] || "";
+        const modeleVal = row["Modèle"] || row["Modele"] || row["modele"] || "";
+        const tailleVal = row["Taille"] || row["taille"] || "";
+        const tailleEnfantVal = row["Taille enfant"] || row["Taille Enfant"] || row["tailleEnfant"] || "";
+
         const docRef = db.collection("equipment").doc();
         batch.set(docRef, {
-          type: row["Type équipement"] || "",
-          marque: row["Marque"] || "",
-          modele: row["Modèle"] || "",
-          taille: row["Taille"] || "",
-          tailleEnfant: row["Taille enfant"] || "",
+          type: typeVal.trim(),
+          marque: marqueVal.trim(),
+          modele: modeleVal.trim(),
+          taille: tailleVal.trim(),
+          tailleEnfant: tailleEnfantVal.trim(),
           statut: "en_stock",
           importedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
@@ -538,6 +546,11 @@ function importInventoryCSV() {
 
       await batch.commit();
       alert(`Importation réussie : ${results.data.length} équipements ajoutés.`);
+      
+      // Recharge l'inventaire en mémoire s'il existe
+      if (typeof loadInventory === "function") {
+        await loadInventory();
+      }
     }
   });
 }
