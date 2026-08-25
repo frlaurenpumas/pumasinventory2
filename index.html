@@ -36,7 +36,7 @@
       <div class="card">
         <h3>Recherche / Création</h3>
         <div class="search-box">
-          <input type="text" id="c1-search" placeholder="Tapez les premières lettres du Nom ou Prénom..." oninput="onSearchAdherent(this.value)">
+          <input type="text" id="c1-search" placeholder="Tapez les premières lettres du Nom ou Prénom..." autocomplete="off" oninput="onSearchAdherent(this.value)">
           <button type="button" class="btn btn-secondary" onclick="resetAdherentForm()">+ Nouvel Adhérent</button>
         </div>
         <ul id="c1-search-results" class="autocomplete-list"></ul>
