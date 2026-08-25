@@ -267,7 +267,6 @@ function parseTailleEnfantRange(tailleStr) {
 function getAdherentMeasureForType(type, adh) {
   if (!adh) return null;
   
-  // Fonction utilitaire pour extraire un nombre pur d'une chaîne (ex: "10\"", "10&quot;", "10")
   const cleanNumber = (val) => {
     if (val === null || val === undefined || val === "") return null;
     const num = parseFloat(String(val).replace(/[^0-9.]/g, ""));
@@ -280,8 +279,10 @@ function getAdherentMeasureForType(type, adh) {
     case "Patins":
       return cleanNumber(adh.pointure);
     case "Gants":
-    case "Crosse":
       return cleanNumber(adh.tailleMainInch);
+    case "Crosse":
+      // Aucune mesure appliquée pour les crosses
+      return null;
     default:
       // Plastron, Coudières, Culotte, Jambières, Maillot, Sac...
       return cleanNumber(adh.tailleCm);
@@ -345,27 +346,38 @@ function populateGridSizes(index, type) {
     const strTaille = String(taille);
 
     const isRecommended = inStockEquipment.some(eq => {
-      // 1. Vérifier que c'est bien le bon équipement/taille
       if (String(eq.taille) !== strTaille) return false;
 
-      // Si l'adhérent n'a pas de mesure renseignée, on préconise tout
+      // CROSSES : Aucune suggestion (toujours préconisé à false sauf si 'Afficher tout' est coché)
+      if (type === "Crosse") return false;
+
+      // Si l'adhérent n'a pas de mesure renseignée, on préconise tout par défaut
       if (measure === null) return true;
 
-      // 2. Extraire la plage ou la taille recommandée
       const range = parseTailleEnfantRange(eq.tailleEnfant);
 
-      // CAS A : Si pas de 'tailleEnfant' définie dans l'inventaire
+      // CAS A : Pas de 'tailleEnfant' définie dans l'inventaire
       if (!range) {
-        // Pour les Gants et Crosses : comparaison directe entre la taille d'équipement et la mesure de main
-        if (type === "Gants" || type === "Crosse") {
-          const numTaille = parseFloat(strTaille.replace(/[^0-9.]/g, ""));
-          return !isNaN(numTaille) && numTaille === measure;
+        const numTaille = parseFloat(strTaille.replace(/[^0-9.]/g, ""));
+        
+        // PATINS : Tolérance ± 1 pointure
+        if (type === "Patins") {
+          return !isNaN(numTaille) && Math.abs(numTaille - measure) <= 1;
         }
+
+        // GANTS et AUTRES : Match exact obligatoire
+        if (!isNaN(numTaille)) {
+          return numTaille === measure;
+        }
+
         return true;
       }
 
-      // CAS B : Si la plage a une borne min et max identique (ex: "10" -> min:10, max:10)
+      // CAS B : Plage avec borne min et max identique (ex: "10" -> min:10, max:10)
       if (range.min === range.max) {
+        if (type === "Patins") {
+          return Math.abs(measure - range.min) <= 1;
+        }
         return measure === range.min;
       }
 
@@ -375,16 +387,16 @@ function populateGridSizes(index, type) {
 
     if (isRecommended) recommendedCount++;
 
-    if (isRecommended || showAllSizesOverride) {
+    if (isRecommended || showAllSizesOverride || type === "Crosse") {
       const opt = document.createElement("option");
       opt.value = strTaille;
-      opt.textContent = isRecommended ? `${strTaille} (Préconisé)` : `${strTaille} (Hors plage)`;
+      opt.textContent = isRecommended ? `${strTaille} (Préconisé)` : strTaille;
       if (isRecommended) opt.style.fontWeight = "bold";
       sizeSelect.appendChild(opt);
     }
   });
 
-  if (recommendedCount === 0 && !showAllSizesOverride && availableSizes.length > 0) {
+  if (recommendedCount === 0 && !showAllSizesOverride && type !== "Crosse" && availableSizes.length > 0) {
     const opt = document.createElement("option");
     opt.disabled = true;
     opt.textContent = "Aucune taille préconisée (Cocher 'Afficher tout')";
