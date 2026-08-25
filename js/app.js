@@ -2,6 +2,7 @@
 let currentAdherentC2 = null;
 let allInventoryCache = [];
 let assignedEquipmentCache = [];
+let showAllSizesOverride = false; // Option de débrayage
 
 // Initialisation au chargement de la page
 document.addEventListener("DOMContentLoaded", () => {
@@ -14,19 +15,14 @@ document.addEventListener("DOMContentLoaded", () => {
 function switchTab(tabId, e) {
   console.log(`[DEBUG] Navigation vers l'onglet : ${tabId}`);
   
-  // Masque tous les contenus d'onglets
   document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
-  
-  // Retire le style actif de tous les boutons
   document.querySelectorAll(".tab-btn").forEach(el => el.classList.remove("active"));
   
-  // Affiche l'onglet ciblé
   const targetTab = document.getElementById(tabId);
   if (targetTab) {
     targetTab.classList.add("active");
   }
   
-  // Active le bouton cliqué s'il existe
   if (e && e.currentTarget) {
     e.currentTarget.classList.add("active");
   }
@@ -64,7 +60,6 @@ function calculateCategory() {
   else cat = "Sénior";
 
   document.getElementById("adh-categorie").value = cat;
-  console.log(`[DEBUG] Calcul automatique catégorie pour âge ${age} : ${cat}`);
 }
 
 async function onSearchAdherent(query) {
@@ -72,7 +67,6 @@ async function onSearchAdherent(query) {
   listEl.innerHTML = "";
   if (query.length < 2) return;
 
-  console.log(`[DEBUG] Recherche adhérent : "${query}"`);
   const snapshot = await db.collection("adherents").get();
   const results = snapshot.docs
     .map(doc => ({ id: doc.id, ...doc.data() }))
@@ -87,7 +81,6 @@ async function onSearchAdherent(query) {
 }
 
 function fillAdherentForm(adh) {
-  console.log("[DEBUG] Chargement de l'adhérent dans le formulaire:", adh);
   document.getElementById("adh-id").value = adh.id;
   document.getElementById("adh-nom").value = adh.nom || "";
   document.getElementById("adh-prenom").value = adh.prenom || "";
@@ -102,13 +95,10 @@ function fillAdherentForm(adh) {
   document.getElementById("adh-pointure").value = adh.pointure || "";
   document.getElementById("c1-search-results").innerHTML = "";
 
-  if (dob) {
-    calculateCategory();
-  }
+  if (dob) calculateCategory();
 }
 
 function resetAdherentForm() {
-  console.log("[DEBUG] Réinitialisation du formulaire adhérent.");
   document.getElementById("adh-id").value = "";
   document.getElementById("form-adherent").reset();
   document.getElementById("c1-search-results").innerHTML = "";
@@ -133,10 +123,8 @@ async function saveAndSendToComptoir2(e) {
 
   if (id) {
     await db.collection("adherents").doc(id).update(payload);
-    console.log(`[DEBUG] Adhérent mis à jour (ID: ${id}) et statut "En attente de matériel"`);
   } else {
-    const docRef = await db.collection("adherents").add(payload);
-    console.log(`[DEBUG] Nouvel adhérent créé (ID: ${docRef.id}) et envoyé au Comptoir 2`);
+    await db.collection("adherents").add(payload);
   }
 
   alert("Fiche validée et transmise au Comptoir 2 !");
@@ -146,7 +134,6 @@ async function saveAndSendToComptoir2(e) {
 // --- COMPTOIR 2 : DISTRIBUTION & ÉCHANGES ---
 
 function listenToQueueC2() {
-  console.log("[DEBUG] Écoute temps réel de la file d'attente (Comptoir 2)...");
   db.collection("adherents")
     .where("statut", "==", "En attente de matériel")
     .onSnapshot(snapshot => {
@@ -166,7 +153,6 @@ function listenToQueueC2() {
 }
 
 async function selectAdherentC2(adh) {
-  console.log("[DEBUG] Adhérent sélectionné au Comptoir 2:", adh);
   currentAdherentC2 = adh;
   document.getElementById("c2-workarea").style.display = "block";
   document.getElementById("c2-adh-fullname").textContent = `${adh.nom} ${adh.prenom}`;
@@ -183,7 +169,6 @@ async function selectAdherentC2(adh) {
 }
 
 function listenToAssignedEquipment(adhId) {
-  console.log(`[DEBUG] Écoute des équipements attribués à l'adhérent ${adhId}`);
   db.collection("loans")
     .where("adhId", "==", adhId)
     .where("statut", "==", "attribue")
@@ -204,7 +189,7 @@ function renderAssignedTable() {
     const dateStr = item.dateRemise ? new Date(item.dateRemise.toDate()).toLocaleString("fr-FR") : "-";
     tr.innerHTML = `
       <td>${item.type}</td>
-      <td>${item.marque} ${item.modele}</td>
+      <td>${item.marque || ''} ${item.modele || ''}</td>
       <td>${item.taille}</td>
       <td>${dateStr}</td>
       <td><button class="btn btn-danger" onclick="returnEquipment('${item.id}', '${item.eqId}')">Échanger / Restituer</button></td>
@@ -245,12 +230,11 @@ function checkPackAndAlerts() {
 }
 
 async function loadInventory() {
-  console.log("[DEBUG] Chargement complet de l'inventaire matériel...");
   const snapshot = await db.collection("equipment").get();
   allInventoryCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
-// --- LOGIQUE D'ATTRIBUTION EN GRILLE (8/10 LIGNES) ---
+// --- LOGIQUE D'ATTRIBUTION PAR TAILLE ENFANT ---
 
 const EQUIPMENT_TYPES = [
   "Casque",
@@ -265,6 +249,42 @@ const EQUIPMENT_TYPES = [
   "Sac"
 ];
 
+// Extrait min et max d'une chaîne du type "110-120"
+function parseTailleEnfantRange(tailleStr) {
+  if (!tailleStr) return null;
+  const cleanStr = String(tailleStr).replace(/\s+/g, '');
+  const parts = cleanStr.split("-").map(Number);
+  
+  if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+    return { min: parts[0], max: parts[1] };
+  } else if (parts.length === 1 && !isNaN(parts[0])) {
+    return { min: parts[0], max: parts[0] };
+  }
+  return null;
+}
+
+// Sélectionne la bonne valeur de mesure de l'adhérent selon le type d'équipement
+function getAdherentMeasureForType(type, adh) {
+  if (!adh) return null;
+  switch (type) {
+    case "Casque":
+      return adh.tourTeteCm ? Number(adh.tourTeteCm) : null;
+    case "Patins":
+      return adh.pointure ? Number(adh.pointure) : null;
+    case "Gants":
+    case "Crosse":
+      return adh.tailleMainInch ? Number(adh.tailleMainInch) : null;
+    default:
+      // Plastron, Coudières, Culotte, Jambières, Maillot, Sac...
+      return adh.tailleCm ? Number(adh.tailleCm) : null;
+  }
+}
+
+function toggleShowAllSizes(checkbox) {
+  showAllSizesOverride = checkbox.checked;
+  renderAttributionGrid();
+}
+
 function renderAttributionGrid() {
   const tbody = document.getElementById("grid-attribution-body");
   if (!tbody) return;
@@ -278,13 +298,8 @@ function renderAttributionGrid() {
         <input type="hidden" name="type_${index}" value="${type}">
       </td>
       <td>
-        <select id="grid-model-${index}" class="form-control" onchange="onGridModelChange(${index}, '${type}')">
-          <option value="">-- Ignorer / Sélectionner --</option>
-        </select>
-      </td>
-      <td>
         <select id="grid-size-${index}" class="form-control" onchange="onGridSizeChange(${index}, '${type}')">
-          <option value="">-- Modèle d'abord --</option>
+          <option value="">-- Sélectionner une taille --</option>
         </select>
       </td>
       <td class="text-center">
@@ -293,75 +308,69 @@ function renderAttributionGrid() {
     `;
     tbody.appendChild(tr);
 
-    populateGridModels(index, type);
+    populateGridSizes(index, type);
   });
 }
 
-function populateGridModels(index, type) {
-  const modelSelect = document.getElementById(`grid-model-${index}`);
-  if (!modelSelect) return;
-
-  const availableModels = [...new Set(
-    allInventoryCache
-      .filter(eq => eq.type === type && eq.statut === "en_stock")
-      .map(eq => `${eq.marque} | ${eq.modele}`)
-  )];
-
-  modelSelect.innerHTML = '<option value="">-- Ignorer / Sélectionner --</option>';
-  availableModels.forEach(m => {
-    const opt = document.createElement("option");
-    opt.value = m;
-    opt.textContent = m;
-    modelSelect.appendChild(opt);
-  });
-}
-
-function onGridModelChange(index, type) {
-  const modelSelect = document.getElementById(`grid-model-${index}`);
+function populateGridSizes(index, type) {
   const sizeSelect = document.getElementById(`grid-size-${index}`);
-  const stockSpan = document.getElementById(`grid-stock-${index}`);
+  if (!sizeSelect) return;
 
-  const selectedModelStr = modelSelect.value;
-  sizeSelect.innerHTML = '<option value="">-- Sélectionner --</option>';
-  stockSpan.textContent = "-";
+  const measure = getAdherentMeasureForType(type, currentAdherentC2);
 
-  if (!selectedModelStr) return;
+  // Filtrage du matériel disponible en stock
+  const inStockEquipment = allInventoryCache.filter(eq => eq.type === type && eq.statut === "en_stock");
 
-  const [marque, modele] = selectedModelStr.split(" | ");
+  // Regroupement des tailles disponibles
+  const availableSizes = [...new Set(inStockEquipment.map(eq => eq.taille))].filter(Boolean);
 
-  const availableSizes = [...new Set(
-    allInventoryCache
-      .filter(eq => eq.type === type && eq.marque === marque && eq.modele === modele && eq.statut === "en_stock")
-      .map(eq => eq.taille)
-  )];
+  sizeSelect.innerHTML = '<option value="">-- Sélectionner une taille --</option>';
 
-  availableSizes.forEach(s => {
-    const opt = document.createElement("option");
-    opt.value = s;
-    opt.textContent = s;
-    sizeSelect.appendChild(opt);
+  let recommendedCount = 0;
+
+  availableSizes.forEach(taille => {
+    // Vérifier si au moins une pièce de cette taille correspond au critère min <= mesure < max
+    const isRecommended = inStockEquipment.some(eq => {
+      if (eq.taille !== taille) return false;
+      
+      const range = parseTailleEnfantRange(eq.tailleEnfant);
+      if (!range || measure === null) return true; // Si pas d'info de plage, on l'affiche par précaution
+
+      return measure >= range.min && measure < range.max;
+    });
+
+    if (isRecommended) recommendedCount++;
+
+    // On affiche l'option si elle est recommandée OU si l'option de débrayage est activée
+    if (isRecommended || showAllSizesOverride) {
+      const opt = document.createElement("option");
+      opt.value = taille;
+      opt.textContent = isRecommended ? `${taille} (Préconisé)` : `${taille} (Hors plage)`;
+      if (isRecommended) opt.style.fontWeight = "bold";
+      sizeSelect.appendChild(opt);
+    }
   });
+
+  if (recommendedCount === 0 && !showAllSizesOverride && availableSizes.length > 0) {
+    const opt = document.createElement("option");
+    opt.disabled = true;
+    opt.textContent = "Aucune taille préconisée en stock (Cocher 'Afficher tout')";
+    sizeSelect.appendChild(opt);
+  }
 }
 
 function onGridSizeChange(index, type) {
-  const modelSelect = document.getElementById(`grid-model-${index}`);
   const sizeSelect = document.getElementById(`grid-size-${index}`);
   const stockSpan = document.getElementById(`grid-stock-${index}`);
-
-  const selectedModelStr = modelSelect.value;
   const selectedSize = sizeSelect.value;
 
-  if (!selectedModelStr || !selectedSize) {
+  if (!selectedSize) {
     stockSpan.textContent = "-";
     return;
   }
 
-  const [marque, modele] = selectedModelStr.split(" | ");
-
   const count = allInventoryCache.filter(eq => 
     eq.type === type && 
-    eq.marque === marque && 
-    eq.modele === modele && 
     eq.taille === selectedSize && 
     eq.statut === "en_stock"
   ).length;
@@ -378,18 +387,15 @@ async function assignAllEquipment(e) {
 
   for (let i = 0; i < EQUIPMENT_TYPES.length; i++) {
     const type = EQUIPMENT_TYPES[i];
-    const modelSelect = document.getElementById(`grid-model-${i}`);
     const sizeSelect = document.getElementById(`grid-size-${i}`);
 
-    if (modelSelect && sizeSelect && modelSelect.value && sizeSelect.value) {
-      const [marque, modele] = modelSelect.value.split(" | ");
-      const taille = sizeSelect.value;
+    if (sizeSelect && sizeSelect.value) {
+      const selectedSize = sizeSelect.value;
 
+      // Recherche du premier équipement disponible correspondant au type et à la taille
       const itemToAssign = allInventoryCache.find(eq => 
         eq.type === type && 
-        eq.marque === marque && 
-        eq.modele === modele && 
-        eq.taille === taille && 
+        eq.taille === selectedSize && 
         eq.statut === "en_stock"
       );
 
@@ -401,7 +407,10 @@ async function assignAllEquipment(e) {
         batch.set(loanRef, {
           adhId: currentAdherentC2.id,
           eqId: itemToAssign.id,
-          type, marque, modele, taille,
+          type: itemToAssign.type,
+          marque: itemToAssign.marque || "",
+          modele: itemToAssign.modele || "",
+          taille: itemToAssign.taille,
           statut: "attribue",
           dateRemise: firebase.firestore.FieldValue.serverTimestamp(),
           dateRestitution: null
@@ -414,19 +423,16 @@ async function assignAllEquipment(e) {
   }
 
   if (itemsAssignedCount === 0) {
-    alert("Veuillez sélectionner au moins un équipement complet (Modèle + Taille).");
+    alert("Veuillez sélectionner au moins une taille d'équipement.");
     return;
   }
 
   await batch.commit();
-  console.log(`[DEBUG] ${itemsAssignedCount} équipements attribués à l'adhérent ${currentAdherentC2.id}`);
-
   await loadInventory();
   renderAttributionGrid();
 }
 
 async function returnEquipment(loanId, eqId) {
-  console.log(`[DEBUG] Restitution du prêt ${loanId} (Équipement ${eqId})`);
   const batch = db.batch();
 
   batch.update(db.collection("equipment").doc(eqId), { statut: "en_stock" });
@@ -437,13 +443,11 @@ async function returnEquipment(loanId, eqId) {
   });
 
   await batch.commit();
-  console.log(`[DEBUG] Restitution exécutée. Réactualisation inventaire...`);
   await loadInventory();
 }
 
 async function closeRemiseSession() {
   if (!currentAdherentC2) return;
-  console.log(`[DEBUG] Clôture session pour l'adhérent ${currentAdherentC2.id}`);
 
   await db.collection("adherents").doc(currentAdherentC2.id).update({
     statut: "Équipé",
@@ -461,14 +465,11 @@ function importAdherentsCSV() {
   const fileInput = document.getElementById("csv-adh-file");
   if (!fileInput || !fileInput.files[0]) return alert("Veuillez choisir un fichier CSV.");
 
-  console.log("[DEBUG] Début import CSV Adhérents...");
   Papa.parse(fileInput.files[0], {
     header: true,
     skipEmptyLines: true,
     transformHeader: (h) => h.trim(),
     complete: async (results) => {
-      console.log(`[DEBUG] CSV Adhérents analysé. ${results.data.length} lignes trouvées.`, results.data);
-      
       for (const row of results.data) {
         let rawDate = row["Date Naissance"] || row["DateNaissance"] || row["dateNaissance"] || "";
         let formattedDate = formatDateToISO(rawDate);
@@ -489,7 +490,6 @@ function importAdherentsCSV() {
       }
 
       alert(`Importation réussie : ${results.data.length} adhérents ajoutés.`);
-      console.log("[DEBUG] Importation adhérents Firestore terminée.");
     }
   });
 }
@@ -517,12 +517,10 @@ function importInventoryCSV() {
   const fileInput = document.getElementById("csv-eq-file");
   if (!fileInput || !fileInput.files[0]) return alert("Veuillez choisir un fichier CSV.");
 
-  console.log("[DEBUG] Début import CSV Matériel...");
   Papa.parse(fileInput.files[0], {
     header: true,
     skipEmptyLines: true,
     complete: async (results) => {
-      console.log(`[DEBUG] CSV Matériel analysé. ${results.data.length} lignes trouvées.`, results.data);
       const batch = db.batch();
 
       results.data.forEach(row => {
@@ -540,13 +538,11 @@ function importInventoryCSV() {
 
       await batch.commit();
       alert(`Importation réussie : ${results.data.length} équipements ajoutés.`);
-      console.log("[DEBUG] Importation inventaire Firestore terminée.");
     }
   });
 }
 
 async function exportAdherentsCSV() {
-  console.log("[DEBUG] Exportation Adhérents en CSV...");
   const snapshot = await db.collection("adherents").get();
   const data = snapshot.docs.map(doc => {
     const d = doc.data();
@@ -567,22 +563,17 @@ async function exportAdherentsCSV() {
 }
 
 async function exportInventoryCSV() {
-  console.log("[DEBUG] Exportation Matériel enrichi avec l'adhérent en CSV...");
-  
-  // 1. Récupération simultanée du matériel, des prêts attribués et des adhérents
   const [equipmentSnap, loansSnap, adherentsSnap] = await Promise.all([
     db.collection("equipment").get(),
     db.collection("loans").where("statut", "==", "attribue").get(),
     db.collection("adherents").get()
   ]);
 
-  // 2. Création de cartes (Maps) pour un accès rapide aux données
   const adherentsMap = new Map();
   adherentsSnap.docs.forEach(doc => {
     adherentsMap.set(doc.id, doc.data());
   });
 
-  // Associe eqId => Nom + Prénom de l'adhérent
   const equipmentAssigneeMap = new Map();
   loansSnap.docs.forEach(doc => {
     const loan = doc.data();
@@ -592,7 +583,6 @@ async function exportInventoryCSV() {
     }
   });
 
-  // 3. Construction des lignes du CSV
   const data = equipmentSnap.docs.map(doc => {
     const d = doc.data();
     const attribueA = d.statut === "attribue" 
@@ -611,11 +601,10 @@ async function exportInventoryCSV() {
     };
   });
 
-  // 4. Téléchargement du fichier CSV
   downloadCSV(data, "export_inventaire_materiel.csv");
 }
+
 async function exportLoansCSV() {
-  console.log("[DEBUG] Exportation Registre des Prêts en CSV...");
   const snapshot = await db.collection("loans").get();
   const data = snapshot.docs.map(doc => {
     const d = doc.data();
@@ -645,5 +634,4 @@ function downloadCSV(data, filename) {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  console.log(`[DEBUG] Fichier CSV généré et téléchargé : ${filename}`);
 }
