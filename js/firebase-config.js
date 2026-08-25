@@ -1,18 +1,4 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { 
-  getFirestore, 
-  collection, 
-  doc, 
-  setDoc, 
-  addDoc, 
-  updateDoc, 
-  serverTimestamp, 
-  query, 
-  where, 
-  onSnapshot,
-  getDocs 
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
+// Initialisation Firebase (SDK v9+ modular import via CDN dans index.html ou global)
 const firebaseConfig = { 
   apiKey: "AIzaSyANq5OTGWebaQlXk9wBLI9DXO21T_KZQxo", 
   authDomain: "pumasinventory2.firebaseapp.com", 
@@ -23,7 +9,7 @@ const firebaseConfig = {
   measurementId: "G-K0HTSGSE9W" 
 }; 
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-export { db, collection, doc, setDoc, addDoc, updateDoc, serverTimestamp, query, where, onSnapshot, getDocs };
+// Initialisation globalement exposée
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+console.log("[DEBUG] Firebase Firestore initialisé avec succès.");
