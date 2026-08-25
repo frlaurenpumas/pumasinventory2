@@ -567,23 +567,53 @@ async function exportAdherentsCSV() {
 }
 
 async function exportInventoryCSV() {
-  console.log("[DEBUG] Exportation Matériel en CSV...");
-  const snapshot = await db.collection("equipment").get();
-  const data = snapshot.docs.map(doc => {
+  console.log("[DEBUG] Exportation Matériel enrichi avec l'adhérent en CSV...");
+  
+  // 1. Récupération simultanée du matériel, des prêts attribués et des adhérents
+  const [equipmentSnap, loansSnap, adherentsSnap] = await Promise.all([
+    db.collection("equipment").get(),
+    db.collection("loans").where("statut", "==", "attribue").get(),
+    db.collection("adherents").get()
+  ]);
+
+  // 2. Création de cartes (Maps) pour un accès rapide aux données
+  const adherentsMap = new Map();
+  adherentsSnap.docs.forEach(doc => {
+    adherentsMap.set(doc.id, doc.data());
+  });
+
+  // Associe eqId => Nom + Prénom de l'adhérent
+  const equipmentAssigneeMap = new Map();
+  loansSnap.docs.forEach(doc => {
+    const loan = doc.data();
+    const adh = adherentsMap.get(loan.adhId);
+    if (adh && loan.eqId) {
+      equipmentAssigneeMap.set(loan.eqId, `${adh.nom.toUpperCase()} ${adh.prenom}`);
+    }
+  });
+
+  // 3. Construction des lignes du CSV
+  const data = equipmentSnap.docs.map(doc => {
     const d = doc.data();
+    const attribueA = d.statut === "attribue" 
+      ? (equipmentAssigneeMap.get(doc.id) || "Adhérent non trouvé") 
+      : "-";
+
     return {
+      "ID Équipement": doc.id,
       "Type équipement": d.type,
       "Marque": d.marque,
       "Modèle": d.modele,
       "Taille": d.taille,
-      "Taille enfant": d.tailleEnfant,
-      "Statut": d.statut
+      "Taille enfant": d.tailleEnfant || "",
+      "Statut": d.statut === "attribue" ? "Attribué" : "En stock",
+      "Attribué à": attribueA
     };
   });
 
+  // 4. Téléchargement du fichier CSV
   downloadCSV(data, "export_inventaire_materiel.csv");
 }
-
 async function exportLoansCSV() {
   console.log("[DEBUG] Exportation Registre des Prêts en CSV...");
   const snapshot = await db.collection("loans").get();
