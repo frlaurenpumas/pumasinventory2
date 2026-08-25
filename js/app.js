@@ -34,6 +34,7 @@ function switchTab(tabId, e) {
 
 function populatePointureOptions() {
   const select = document.getElementById("adh-pointure");
+  if (!select) return;
   for (let i = 28; i <= 40; i++) {
     const opt = document.createElement("option");
     opt.value = i;
@@ -91,7 +92,6 @@ function fillAdherentForm(adh) {
   document.getElementById("adh-nom").value = adh.nom || "";
   document.getElementById("adh-prenom").value = adh.prenom || "";
   
-  // Formatage garanti YYYY-MM-DD pour le champ type="date"
   const dob = adh.dateNaissance ? formatDateToISO(adh.dateNaissance) : "";
   document.getElementById("adh-dob").value = dob;
 
@@ -102,11 +102,11 @@ function fillAdherentForm(adh) {
   document.getElementById("adh-pointure").value = adh.pointure || "";
   document.getElementById("c1-search-results").innerHTML = "";
 
-  // Déclencher le recalcul automatique de la catégorie si la date est présente
   if (dob) {
     calculateCategory();
   }
 }
+
 function resetAdherentForm() {
   console.log("[DEBUG] Réinitialisation du formulaire adhérent.");
   document.getElementById("adh-id").value = "";
@@ -151,6 +151,7 @@ function listenToQueueC2() {
     .where("statut", "==", "En attente de matériel")
     .onSnapshot(snapshot => {
       const queueList = document.getElementById("c2-queue");
+      if (!queueList) return;
       queueList.innerHTML = "";
       
       snapshot.forEach(doc => {
@@ -177,7 +178,7 @@ async function selectAdherentC2(adh) {
   `;
 
   await loadInventory();
-  renderAttributionGrid(); // <--- AJOUTER CETTE LIGNE
+  renderAttributionGrid();
   listenToAssignedEquipment(adh.id);
 }
 
@@ -195,6 +196,7 @@ function listenToAssignedEquipment(adhId) {
 
 function renderAssignedTable() {
   const tbody = document.getElementById("c2-assigned-table");
+  if (!tbody) return;
   tbody.innerHTML = "";
   
   assignedEquipmentCache.forEach(item => {
@@ -215,7 +217,6 @@ function checkPackAndAlerts() {
   if (!currentAdherentC2) return;
   const isEDH = currentAdherentC2.categorie === "EDH";
   
-  // Définition du pack
   const basePack = ["Casque", "Plastron", "Coudières", "Culotte", "Jambières", "Patins", "Sac"];
   if (isEDH) basePack.push("Maillot");
   else basePack.push("Crosse");
@@ -224,23 +225,19 @@ function checkPackAndAlerts() {
   
   const assignedTypes = assignedEquipmentCache.map(i => i.type);
   
-  // Progression pack
   const countAssigned = basePack.filter(type => assignedTypes.includes(type)).length;
   const pct = Math.round((countAssigned / basePack.length) * 100);
   document.getElementById("c2-pack-progress").style.width = `${pct}%`;
   document.getElementById("c2-pack-count").textContent = `${countAssigned} / ${basePack.length} pièces attribuées (${pct}%)`;
 
-  // Alertes
   const alertsContainer = document.getElementById("c2-alerts");
   alertsContainer.innerHTML = "";
 
-  // 1. Doublons
   const duplicates = assignedTypes.filter((item, index) => assignedTypes.indexOf(item) !== index);
   if (duplicates.length > 0) {
     alertsContainer.innerHTML += `<div class="alert alert-danger">⚠️ Doublon détecté : ${[...new Set(duplicates)].join(", ")}</div>`;
   }
 
-  // 2. Manquants obligatoires
   const missing = requiredItems.filter(type => !assignedTypes.includes(type));
   if (missing.length > 0) {
     alertsContainer.innerHTML += `<div class="alert alert-warning">⚠️ Équipements obligatoires manquants : ${missing.join(", ")}</div>`;
@@ -253,7 +250,7 @@ async function loadInventory() {
   allInventoryCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
-// --- NOUVELLE LOGIQUE D'ATTRIBUTION EN GRILLE (8/10 LIGNES) ---
+// --- LOGIQUE D'ATTRIBUTION EN GRILLE (8/10 LIGNES) ---
 
 const EQUIPMENT_TYPES = [
   "Casque",
@@ -427,44 +424,13 @@ async function assignAllEquipment(e) {
   await loadInventory();
   renderAttributionGrid();
 }
-  if (!itemToAssign) {
-    alert("Pièce non disponible en stock.");
-    return;
-  }
-
-  const batch = db.batch();
-
-  // 1. Passer le matériel en "attribue"
-  const eqRef = db.collection("equipment").doc(itemToAssign.id);
-  batch.update(eqRef, { statut: "attribue" });
-
-  // 2. Enregistrer la transaction horodatée dans "loans"
-  const loanRef = db.collection("loans").doc();
-  batch.set(loanRef, {
-    adhId: currentAdherentC2.id,
-    eqId: itemToAssign.id,
-    type, marque, modele, taille,
-    statut: "attribue",
-    dateRemise: firebase.firestore.FieldValue.serverTimestamp(),
-    dateRestitution: null
-  });
-
-  await batch.commit();
-  console.log(`[DEBUG] Matériel ${itemToAssign.id} attribué à l'adhérent ${currentAdherentC2.id}`);
-
-  document.getElementById("form-attribution").reset();
-  document.getElementById("stock-count").textContent = "-";
-  await loadInventory();
-}
 
 async function returnEquipment(loanId, eqId) {
   console.log(`[DEBUG] Restitution du prêt ${loanId} (Équipement ${eqId})`);
   const batch = db.batch();
 
-  // 1. Remettre l'équipement en stock
   batch.update(db.collection("equipment").doc(eqId), { statut: "en_stock" });
 
-  // 2. Clôturer le prêt horodaté
   batch.update(db.collection("loans").doc(loanId), {
     statut: "restitue",
     dateRestitution: firebase.firestore.FieldValue.serverTimestamp()
@@ -493,19 +459,17 @@ async function closeRemiseSession() {
 
 function importAdherentsCSV() {
   const fileInput = document.getElementById("csv-adh-file");
-  if (!fileInput.files[0]) return alert("Veuillez choisir un fichier CSV.");
+  if (!fileInput || !fileInput.files[0]) return alert("Veuillez choisir un fichier CSV.");
 
   console.log("[DEBUG] Début import CSV Adhérents...");
   Papa.parse(fileInput.files[0], {
     header: true,
     skipEmptyLines: true,
-    transformHeader: (h) => h.trim(), // Nettoie les espaces invisibles dans les entêtes
+    transformHeader: (h) => h.trim(),
     complete: async (results) => {
       console.log(`[DEBUG] CSV Adhérents analysé. ${results.data.length} lignes trouvées.`, results.data);
-      const batch = db.collection("adherents");
       
       for (const row of results.data) {
-        // Extraction de la date (supporte 'Date Naissance', 'DateNaissance', etc.)
         let rawDate = row["Date Naissance"] || row["DateNaissance"] || row["dateNaissance"] || "";
         let formattedDate = formatDateToISO(rawDate);
 
@@ -530,21 +494,17 @@ function importAdherentsCSV() {
   });
 }
 
-// Fonction utilitaire pour convertir les dates au format YYYY-MM-DD
 function formatDateToISO(dateStr) {
   if (!dateStr) return "";
   dateStr = dateStr.trim();
 
-  // Si déjà au format YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
 
-  // Si format DD/MM/YYYY ou DD-MM-YYYY
   if (/^\d{2}[\/\-]\d{2}[\/\-]\d{4}$/.test(dateStr)) {
     const parts = dateStr.split(/[\/\-]/);
     return `${parts[2]}-${parts[1]}-${parts[0]}`;
   }
 
-  // Si année sur 4 chiffres avec mois/jours simples (ex: 2012-5-9)
   const d = new Date(dateStr);
   if (!isNaN(d.getTime())) {
     return d.toISOString().split("T")[0];
@@ -555,7 +515,7 @@ function formatDateToISO(dateStr) {
 
 function importInventoryCSV() {
   const fileInput = document.getElementById("csv-eq-file");
-  if (!fileInput.files[0]) return alert("Veuillez choisir un fichier CSV.");
+  if (!fileInput || !fileInput.files[0]) return alert("Veuillez choisir un fichier CSV.");
 
   console.log("[DEBUG] Début import CSV Matériel...");
   Papa.parse(fileInput.files[0], {
