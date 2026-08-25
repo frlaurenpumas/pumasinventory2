@@ -3,280 +3,245 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Matériel Hockey - Gestion des remises</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="icon" href="data:,">
+  <title>Gestion Matériel Hockey</title>
+  <link rel="stylesheet" href="styles.css">
+  
+  <!-- Firebase SDK (Compat version pour simplicité d'intégration script direct) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  
+  <!-- PapaParse CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  
+  <script src="firebase-config.js" defer></script>
+  <script src="app.js" defer></script>
 </head>
-<body class="bg-slate-100 font-sans text-slate-800 min-h-screen">
+<body>
 
-  <!-- En-tête / Navigation -->
-  <header class="bg-blue-900 text-white shadow-md">
-    <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-      <h1 class="text-xl font-bold tracking-wide">🏒 Hockey Club — Distribution Matériel</h1>
-      <nav class="flex space-x-2">
-        <button id="btn-c1" onclick="switchTab('c1')" class="px-4 py-2 bg-blue-700 font-semibold rounded-lg shadow">Comptoir 1 : Accueil & Mesures</button>
-        <button id="btn-c2" onclick="switchTab('c2')" class="px-4 py-2 bg-blue-900 hover:bg-blue-800 font-semibold rounded-lg">Comptoir 2 : Distribution</button>
-        <button id="btn-admin" onclick="switchTab('admin')" class="px-4 py-2 bg-blue-900 hover:bg-blue-800 font-semibold rounded-lg">Admin / CSV</button>
-      </nav>
-    </div>
+  <header>
+    <h1>🏒 Distribution Matériel Hockey</h1>
+    <nav class="tabs">
+      <button class="tab-btn active" onclick="switchTab('comptoir1')">1er Comptoir : Accueil & Mesures</button>
+      <button class="tab-btn" onclick="switchTab('comptoir2')">2ème Comptoir : Distribution</button>
+      <button class="tab-btn" onclick="switchTab('admin')">Admin / CSV</button>
+    </nav>
   </header>
 
-  <main class="max-w-7xl mx-auto p-4 sm:p-6">
+  <main>
+    <!-- COMPTOIR 1 -->
+    <section id="comptoir1" class="tab-content active">
+      <h2>Comptoir 1 : Accueil, Mesures & Mise à jour</h2>
+      
+      <div class="card">
+        <h3>Recherche / Création</h3>
+        <div class="search-box">
+          <input type="text" id="c1-search" placeholder="Tapez les premières lettres du Nom ou Prénom..." oninput="onSearchAdherent(this.value)">
+          <button type="button" class="btn btn-secondary" onclick="resetAdherentForm()">+ Nouvel Adhérent</button>
+        </div>
+        <ul id="c1-search-results" class="autocomplete-list"></ul>
+      </div>
 
-    <!-- COMPTOIR 1 : MESURES ADHÉRENT -->
-    <section id="comptoir1" class="block space-y-6">
-      <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-        <h2 class="text-lg font-bold text-blue-900 mb-4">Comptoir 1 — Identification et mesures de l'adhérent</h2>
+      <div class="card">
+        <h3>Fiche Adhérent</h3>
+        <form id="form-adherent" onsubmit="saveAndSendToComptoir2(event)">
+          <input type="hidden" id="adh-id">
+          
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Nom *</label>
+              <input type="text" id="adh-nom" required>
+            </div>
+            <div class="form-group">
+              <label>Prénom *</label>
+              <input type="text" id="adh-prenom" required>
+            </div>
+            <div class="form-group">
+              <label>Date de Naissance *</label>
+              <input type="date" id="adh-dob" required onchange="calculateCategory()">
+            </div>
+            <div class="form-group">
+              <label>Catégorie</label>
+              <select id="adh-categorie">
+                <option value="">-- Sélectionner --</option>
+                <option value="EDH">EDH</option>
+                <option value="U7">U7</option>
+                <option value="U9">U9</option>
+                <option value="U11">U11</option>
+                <option value="U13">U13</option>
+                <option value="U15">U15</option>
+                <option value="U18">U18</option>
+                <option value="Sénior">Sénior</option>
+                <option value="Loisir">Loisir</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Taille (cm)</label>
+              <input type="number" id="adh-taille-cm" min="100" max="180">
+            </div>
+            <div class="form-group">
+              <label>Tour de tête (cm)</label>
+              <input type="number" id="adh-tete-cm" min="46" max="60">
+            </div>
+            <div class="form-group">
+              <label>Taille Main (inch)</label>
+              <select id="adh-main-inch">
+                <option value="">-- Sélectionner --</option>
+                <option value="8&quot;">8"</option>
+                <option value="9&quot;">9"</option>
+                <option value="10&quot;">10"</option>
+                <option value="11&quot;">11"</option>
+                <option value="12&quot;">12"</option>
+                <option value="13&quot;">13"</option>
+                <option value="14&quot;">14"</option>
+                <option value="15&quot;">15"</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Pointure</label>
+              <select id="adh-pointure">
+                <option value="">-- Sélectionner --</option>
+                <!-- Généré dynamiquement 28 à 40 -->
+              </select>
+            </div>
+          </div>
 
-<form id="form-c1" class="space-y-4">
-
-  <!-- BARRE DE RECHERCHE DYNAMIQUE -->
-  <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-4">
-    <label class="block text-sm font-bold text-blue-900 mb-1">🔍 Rechercher un adhérent pré-existant</label>
-    <div class="relative">
-      <input type="text" id="c1-recherche" placeholder="Tapez le nom ou le prénom..." class="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 bg-white">
-      <div id="c1-resultats-recherche" class="hidden absolute z-10 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1"></div>
-    </div>
-    <p class="text-xs text-slate-500 mt-1">Sélectionnez un adhérent pour compléter ses données, ou remplissez directement le formulaire ci-dessous pour un nouveau.</p>
-  </div>
-
-  <!-- CHAMP CACHÉ POUR CONSERVER L'ID (S'IL S'AGIT D'UNE MISE À JOUR) -->
-  <input type="hidden" id="c1-adherent-id" value="">
-
-  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-    <div>
-      <label class="block text-sm font-medium mb-1">Nom</label>
-      <input type="text" id="c1-nom" required class="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 uppercase">
-    </div>
-    <div>
-      <label class="block text-sm font-medium mb-1">Prénom</label>
-      <input type="text" id="c1-prenom" required class="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 capitalize">
-    </div>
-  </div>
-
-  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-    <div>
-      <label class="block text-sm font-medium mb-1">Date de naissance</label>
-      <input type="date" id="c1-dob" required class="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500">
-    </div>
-    <div>
-      <label class="block text-sm font-medium mb-1">Catégorie</label>
-      <select id="c1-categorie" required class="w-full border rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-blue-500">
-        <option value="">-- Sélectionner --</option>
-        <option value="EDH">EDH (École de Hockey)</option>
-        <option value="U7">U7</option>
-        <option value="U9">U9</option>
-        <option value="U11">U11</option>
-      </select>
-    </div>
-  </div>
-
-  <hr class="my-4 border-slate-100">
-
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
-  <div>
-    <label class="block text-sm font-medium mb-1">Taille (cm)</label>
-    <input type="number" id="c1-taille-cm" min="90" max="180" placeholder="ex: 125" class="w-full border rounded-lg p-2.5 bg-white">
-  </div>
-  <div>
-    <label class="block text-sm font-medium mb-1">Tour de tête (cm)</label>
-    <input type="number" id="c1-tour-tete-cm" min="45" max="65" placeholder="ex: 52" class="w-full border rounded-lg p-2.5 bg-white">
-  </div>
-  <div>
-    <label class="block text-sm font-medium mb-1">Taille Main (inch)</label>
-    <select id="c1-taille-main" class="w-full border rounded-lg p-2.5 bg-white">
-      <option value="">-- Sélectionner --</option>
-      <option value="8&quot;">8"</option>
-      <option value="9&quot;">9"</option>
-      <option value="10&quot;">10"</option>
-      <option value="11&quot;">11"</option>
-      <option value="12&quot;">12"</option>
-      <option value="13&quot;">13"</option>
-    </select>
-  </div>
-  <div>
-    <label class="block text-sm font-medium mb-1">Pointure</label>
-    <input type="number" id="c1-pointure" min="25" max="45" placeholder="ex: 32" class="w-full border rounded-lg p-2.5 bg-white">
-  </div>
-</div>
-    <div>
-      <label class="block text-sm font-medium mb-1">Pointure</label>
-      <input type="number" id="c1-pointure" min="25" max="45" placeholder="ex: 32" class="w-full border rounded-lg p-2.5 bg-white">
-    </div>
-  </div>
-
-  <div class="flex gap-2">
-    <button type="button" onclick="reinitialiserFormC1()" class="w-1/3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-3 rounded-lg">
-      Effacer
-    </button>
-    <button type="submit" id="btn-submit-c1" class="w-2/3 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg shadow">
-      Envoyer au Comptoir 2 ➔
-    </button>
-  </div>
-</form>
+          <button type="submit" class="btn btn-primary mt-2">Valider et envoyer au Comptoir 2</button>
+        </form>
       </div>
     </section>
 
-    <!-- COMPTOIR 2 : DISTRIBUTION ET RETOURS -->
-    <section id="comptoir2" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- COMPTOIR 2 -->
+    <section id="comptoir2" class="tab-content">
+      <h2>Comptoir 2 : Distribution & Échanges</h2>
+      
+      <div class="comptoir2-layout">
+        <!-- File d'attente à gauche -->
+        <aside class="queue-panel card">
+          <h3>File d'attente (Temps réel)</h3>
+          <ul id="c2-queue" class="queue-list"></ul>
+        </aside>
 
-      <!-- Colonne 1 : File d'attente Temps Réel -->
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-        <h2 class="text-md font-bold text-blue-900 mb-3 flex items-center justify-between">
-          <span>En attente de matériel</span>
-          <span id="queue-count" class="bg-blue-100 text-blue-800 text-xs px-2.5 py-1 rounded-full">0</span>
-        </h2>
-        <div id="file-attente" class="space-y-2 max-h-[600px] overflow-y-auto">
-          <!-- Les adhérents envoyés par le Comptoir 1 apparaissent ici en direct -->
-        </div>
-      </div>
+        <!-- Zone de travail à droite -->
+        <div class="work-panel card" id="c2-workarea" style="display:none;">
+          <div class="adherent-header">
+            <h3 id="c2-adh-fullname"></h3>
+            <span class="badge" id="c2-adh-cat"></span>
+          </div>
 
-      <!-- Colonne 2 & 3 : Zone de distribution pour l'adhérent sélectionné -->
-      <div class="lg:col-span-2 space-y-6">
-        <div id="zone-attribution" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hidden">
+          <!-- Alertes Doublons & Manquants -->
+          <div id="c2-alerts"></div>
 
-          <!-- Infos de l'adhérent sélectionné -->
-          <div class="flex justify-between items-start border-b pb-4 mb-4">
-            <div>
-              <h3 id="c2-adh-nom" class="text-xl font-bold text-slate-900"></h3>
-              <p id="c2-adh-infos" class="text-sm text-slate-500"></p>
+          <!-- Rappel des mesures & Indicateurs -->
+          <div class="stats-grid">
+            <div class="stat-box">
+              <h4>Mesures prises (Comptoir 1)</h4>
+              <p id="c2-adh-measures"></p>
             </div>
-            <button onclick="cloturerSession()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-semibold px-3 py-1.5 rounded-lg">
-              Terminer / Clôturer
-            </button>
+            <div class="stat-box">
+              <h4>Dotation globale</h4>
+              <div class="progress-bar-container">
+                <div id="c2-pack-progress" class="progress-bar"></div>
+              </div>
+              <p id="c2-pack-count" class="text-center mt-1"></p>
+            </div>
           </div>
 
-          <!-- Rappel visuel des mensurations -->
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-blue-50 text-blue-900 p-3 rounded-lg text-center text-sm mb-6">
-            <div>Taille: <strong id="rep-taille">-</strong> cm</div>
-            <div>Tête: <strong id="rep-tete">-</strong> cm</div>
-            <div>Main: <strong id="rep-main">-</strong></div>
-            <div>Pointure: <strong id="rep-pointure">-</strong></div>
-          </div>
-
-          <!-- Formulaire d'attribution -->
-          <form id="form-c2" class="space-y-4">
-            <h4 class="font-semibold text-slate-700">Attribuer une pièce</h4>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium mb-1">Type d'équipement</label>
-                <select id="c2-type-equipement" required class="w-full border rounded-lg p-2.5 bg-white">
-                  <option value="">-- Sélectionner --</option>
+          <!-- Formulaire attribution -->
+          <h4>Attribuer un équipement</h4>
+          <form id="form-attribution" onsubmit="assignEquipment(event)">
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Type d'équipement</label>
+                <select id="attr-type" required onchange="onEqTypeChange()">
+                  <option value="">-- Choisir --</option>
                   <option value="Casque">Casque</option>
-                  <option value="Jambières">Jambières</option>
+                  <option value="Plastron">Plastron</option>
                   <option value="Coudières">Coudières</option>
                   <option value="Gants">Gants</option>
                   <option value="Culotte">Culotte</option>
+                  <option value="Jambières">Jambières</option>
                   <option value="Patins">Patins</option>
                   <option value="Crosse">Crosse</option>
+                  <option value="Maillot">Maillot</option>
                   <option value="Sac">Sac</option>
                 </select>
               </div>
-              <div>
-                <label class="block text-sm font-medium mb-1">Matériel disponible en stock</label>
-                <select id="c2-equipement-select" required class="w-full border rounded-lg p-2.5 bg-white">
-                  <option value="">-- Sélectionner le type d'abord --</option>
+              <div class="form-group">
+                <label>Marque & Modèle</label>
+                <select id="attr-model" required onchange="onEqModelChange()">
+                  <option value="">-- Choisir un type d'abord --</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Taille en stock</label>
+                <select id="attr-size" required onchange="onEqSizeChange()">
+                  <option value="">-- Choisir un modèle --</option>
                 </select>
               </div>
             </div>
-            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg">
-              Ajouter l'équipement
-            </button>
+            
+            <div id="stock-gauge-container" class="stock-gauge mt-1">
+              Jauge stock : <strong id="stock-count">-</strong> pièce(s) disponible(s)
+            </div>
+
+            <button type="submit" class="btn btn-primary mt-2">Attribuer l'équipement</button>
           </form>
 
-          <!-- Liste du matériel déjà attribué à cet adhérent -->
-          <div class="mt-8">
-            <h4 class="font-semibold text-slate-700 mb-2">Équipements attribués à cet adhérent</h4>
-            <table class="w-full text-left text-sm border-collapse">
-              <thead>
-                <tr class="bg-slate-50 border-b">
-                  <th class="p-2">Type</th>
-                  <th class="p-2">Marque / Modèle</th>
-                  <th class="p-2">Taille</th>
-                  <th class="p-2">Taille enfant</th>
-                  <th class="p-2 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody id="liste-equipements-attribues">
-                <!-- Rempli en JS -->
-              </tbody>
-            </table>
+          <!-- Liste des équipements attribués -->
+          <h4 class="mt-3">Équipements actuellement attribués</h4>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Marque / Modèle</th>
+                <th>Taille</th>
+                <th>Date remise</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="c2-assigned-table"></tbody>
+          </table>
+
+          <div class="actions-footer mt-3">
+            <button type="button" class="btn btn-success" onclick="closeRemiseSession()">Clôturer la remise</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ADMIN / CSV -->
+    <section id="admin" class="tab-content">
+      <h2>Administration & Fichiers CSV</h2>
+
+      <div class="card">
+        <h3>Importation des données</h3>
+        <div class="import-export-grid">
+          <div class="box">
+            <h4>1. Importer les Adhérents</h4>
+            <p><small>Format: Nom;Prénom;Date Naissance;Catégorie;Taille (cm);Tour de tête (cm);Taille Main(inch);Pointure</small></p>
+            <input type="file" id="csv-adh-file" accept=".csv">
+            <button class="btn btn-secondary mt-1" onclick="importAdherentsCSV()">Importer le fichier des adhérents</button>
           </div>
 
-        </div>
-
-        <div id="aucun-selectionne" class="bg-white p-12 rounded-xl border border-dashed text-center text-slate-400">
-          Sélectionnez un adhérent dans la liste de gauche pour lui attribuer du matériel.
+          <div class="box">
+            <h4>2. Importer l'inventaire matériel</h4>
+            <p><small>Format: Type équipement;Marque;Modèle;Taille;Taille enfant</small></p>
+            <input type="file" id="csv-eq-file" accept=".csv">
+            <button class="btn btn-secondary mt-1" onclick="importInventoryCSV()">Importer le fichier matériel</button>
+          </div>
         </div>
       </div>
 
+      <div class="card">
+        <h3>Exportation des données</h3>
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="exportAdherentsCSV()">Exporter la liste des Adhérents</button>
+          <button class="btn btn-primary" onclick="exportInventoryCSV()">Exporter l'inventaire du Matériel</button>
+          <button class="btn btn-primary" onclick="exportLoansCSV()">Exporter le registre des prêts (horodaté)</button>
+        </div>
+      </div>
     </section>
-    <!-- SECTION ADMIN : IMPORTS ET EXPORTS CSV -->
-<section id="admin" class="hidden space-y-6">
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-   <!-- IMPORTS -->
-<div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
-  <h2 class="text-lg font-bold text-blue-900">📥 Importation des données (CSV)</h2>
-
-  <!-- Import Adhérents -->
-  <div class="p-4 bg-slate-50 border rounded-lg space-y-3">
-    <h3 class="font-semibold text-sm">1. Importer les Adhérents</h3>
-    <p class="text-xs text-slate-500">Structure requise : <code>Nom;Prénom;Date Naissance;Catégorie;Taille (cm);Tour de tête (cm);Taille Main(inch);Pointure</code></p>    <input type="file" id="csv-adherents" accept=".csv" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-    <button onclick="lancerImportAdherents()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg text-sm">
-      Importer le fichier adhérents
-    </button>
-  </div>
-
-  <!-- Import Matériel -->
-  <div class="p-4 bg-slate-50 border rounded-lg space-y-3">
-    <h3 class="font-semibold text-sm">2. Importer l'Inventaire Matériel</h3>
-    <p class="text-xs text-slate-500">Structure : <code>Type équipement;Marque;Modèle;Taille;Taille enfant</code></p>
-    <input type="file" id="csv-equipements" accept=".csv" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-    <button onclick="lancerImportEquipements()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg text-sm">
-      Importer le fichier matériel
-    </button>
-  </div>
-</div>
-
-    <!-- EXPORTS -->
-    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
-      <h2 class="text-lg font-bold text-blue-900">📤 Exportation des données (CSV)</h2>
-      <p class="text-sm text-slate-600">Téléchargez l'état actuel de la base de données à tout moment.</p>
-
-      <div class="space-y-3 pt-2">
-        <button onclick="exporterCollection('adherents')" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-semibold py-2.5 px-4 rounded-lg flex justify-between items-center">
-          <span>Exporter la liste des Adhérents</span>
-          <span>⬇️ CSV</span>
-        </button>
-        <button onclick="exporterCollection('equipements')" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-semibold py-2.5 px-4 rounded-lg flex justify-between items-center">
-          <span>Exporter l'Inventaire du Matériel</span>
-          <span>⬇️ CSV</span>
-        </button>
-        <button onclick="exporterCollection('distributions')" class="w-full bg-blue-800 hover:bg-blue-900 text-white font-semibold py-2.5 px-4 rounded-lg flex justify-between items-center">
-          <span>Exporter le Registre des Prêts (Horodaté)</span>
-          <span>⬇️ CSV</span>
-        </button>
-      </div>
-    </div>
-
-  </div>
-</section>
-
   </main>
 
-  <script type="module" src="js/app.js"></script>
-  <script>
-  function switchTab(tab) {
-    document.getElementById('comptoir1').classList.toggle('hidden', tab !== 'c1');
-    document.getElementById('comptoir2').classList.toggle('hidden', tab !== 'c2');
-    document.getElementById('admin').classList.toggle('hidden', tab !== 'admin');
-
-    document.getElementById('btn-c1').className = tab === 'c1' ? 'px-4 py-2 bg-blue-700 font-semibold rounded-lg shadow' : 'px-4 py-2 bg-blue-900 hover:bg-blue-800 font-semibold rounded-lg';
-    document.getElementById('btn-c2').className = tab === 'c2' ? 'px-4 py-2 bg-blue-700 font-semibold rounded-lg shadow' : 'px-4 py-2 bg-blue-900 hover:bg-blue-800 font-semibold rounded-lg';
-    document.getElementById('btn-admin').className = tab === 'admin' ? 'px-4 py-2 bg-blue-700 font-semibold rounded-lg shadow' : 'px-4 py-2 bg-blue-900 hover:bg-blue-800 font-semibold rounded-lg';
-  }
-</script>
 </body>
 </html>
