@@ -403,25 +403,32 @@ function populateGridSizes(index, type) {
 
       // CAS A : Pas de 'tailleEnfant' définie dans l'inventaire
       if (!range) {
-        // Extraction du nombre dans la taille de l'équipement (ex: '10"' -> 10, '33 EU' -> 33)
+        // Nettoyage strict : on extrait uniquement les chiffres et décimales (ex: '10"' -> 10, ' 10 ' -> 10)
         const matchTaille = strTaille.replace(',', '.').match(/\d+(\.\d+)?/);
         const numTaille = matchTaille ? parseFloat(matchTaille[0]) : null;
 
         // PATINS : Pointure mesurée ± 1 (ex: mesure = 32 -> accepte 31, 32, 33)
         if (type === "Patins") {
           if (numTaille !== null) {
-            const diff = Math.abs(Math.round(numTaille) - Math.round(measure));
-            return diff <= 1;
+            return Math.abs(Math.round(numTaille) - Math.round(measure)) <= 1;
           }
           return false;
         }
 
-        // GANTS et AUTRES : Match numérique exact
+        // GANTS : Comparaison numérique exacte après nettoyage (ignore les guillemets ou espaces)
+        if (type === "Gants") {
+          if (numTaille !== null) {
+            return numTaille === measure;
+          }
+          // Si la taille est un texte brut sans chiffre (ex: "S", "M")
+          return strTaille.trim().toLowerCase() === String(measure).trim().toLowerCase();
+        }
+
+        // AUTRES ÉQUIPEMENTS SANS TAILLE ENFANT
         if (numTaille !== null) {
           return numTaille === measure;
         }
 
-        // Si la taille est un libellé texte (ex: 'S', 'M', 'L'), on ne bloque pas
         return true;
       }
 
