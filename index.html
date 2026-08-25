@@ -112,7 +112,13 @@
     
     <section id="comptoir2" class="tab-content">
       <h2>Comptoir 2 : Distribution & Échanges</h2>
-      
+
+        <div style="margin-top: 10px; margin-bottom: 15px;">
+          <label style="cursor: pointer; font-weight: normal;">
+            <input type="checkbox" id="chk-show-all-sizes" onchange="toggleShowAllSizes(this)">
+            Afficher toutes les tailles hors préconisation
+          </label>
+        </div>
       <div class="comptoir2-layout">
         <!-- File d'attente à gauche -->
         <aside class="queue-panel card">
@@ -121,12 +127,7 @@
         </aside>
 
         <!-- Zone de travail à droite -->
-        <div style="margin-top: 10px; margin-bottom: 15px;">
-          <label style="cursor: pointer; font-weight: normal;">
-            <input type="checkbox" id="chk-show-all-sizes" onchange="toggleShowAllSizes(this)">
-            Afficher toutes les tailles hors préconisation
-          </label>
-        </div>
+
         <div class="work-panel card" id="c2-workarea" style="display:none;">
           <div class="adherent-header">
             <h3 id="c2-adh-fullname"></h3>
