@@ -333,7 +333,7 @@ function populateGridSizes(index, type) {
 
   const measure = getAdherentMeasureForType(type, currentAdherentC2);
   const inStockEquipment = allInventoryCache.filter(eq => eq.type === type && eq.statut === "en_stock");
-  
+
   // Nettoyage et récupération des tailles uniques
   const availableSizes = [...new Set(inStockEquipment.map(eq => eq.taille))].filter(Boolean);
 
@@ -342,21 +342,41 @@ function populateGridSizes(index, type) {
   let recommendedCount = 0;
 
   availableSizes.forEach(taille => {
-    // Conversion explicite en String pour la sécurité
     const strTaille = String(taille);
 
     const isRecommended = inStockEquipment.some(eq => {
+      // 1. Vérifier que c'est bien le bon équipement/taille
       if (String(eq.taille) !== strTaille) return false;
+
+      // Si l'adhérent n'a pas de mesure renseignée, on préconise tout
+      if (measure === null) return true;
+
+      // 2. Extraire la plage ou la taille recommandée
       const range = parseTailleEnfantRange(eq.tailleEnfant);
-      if (!range || measure === null) return true;
-      return measure >= range.min && measure < range.max;
+
+      // CAS A : Si pas de 'tailleEnfant' définie dans l'inventaire
+      if (!range) {
+        // Pour les Gants et Crosses : comparaison directe entre la taille d'équipement et la mesure de main
+        if (type === "Gants" || type === "Crosse") {
+          const numTaille = parseFloat(strTaille.replace(/[^0-9.]/g, ""));
+          return !isNaN(numTaille) && numTaille === measure;
+        }
+        return true;
+      }
+
+      // CAS B : Si la plage a une borne min et max identique (ex: "10" -> min:10, max:10)
+      if (range.min === range.max) {
+        return measure === range.min;
+      }
+
+      // CAS C : Plage standard (ex: "110-120")
+      return measure >= range.min && measure <= range.max;
     });
 
     if (isRecommended) recommendedCount++;
 
     if (isRecommended || showAllSizesOverride) {
       const opt = document.createElement("option");
-      // Attribution sécurisée sans risque de casser le HTML
       opt.value = strTaille;
       opt.textContent = isRecommended ? `${strTaille} (Préconisé)` : `${strTaille} (Hors plage)`;
       if (isRecommended) opt.style.fontWeight = "bold";
