@@ -380,8 +380,14 @@ function populateGridSizes(index, type) {
   const measure = getAdherentMeasureForType(type, currentAdherentC2);
   const inStockEquipment = allInventoryCache.filter(eq => eq.type === type && eq.statut === "en_stock");
 
+  // LOG DEBUG : Mesure & Inventaire disponible
+  console.group(`[DEBUG Grid] ${type} (Index: ${index})`);
+  console.log("➡️ Mesure Adhérent reçue :", measure, "| Type:", typeof measure);
+  console.log("➡️ Équipements en stock trouvés dans la base :", inStockEquipment);
+
   // Tailles uniques disponibles en stock
   const availableSizes = [...new Set(inStockEquipment.map(eq => eq.taille))].filter(Boolean);
+  console.log("➡️ Tailles uniques extraites du stock :", availableSizes);
 
   sizeSelect.innerHTML = '<option value="">-- Choisir une taille --</option>';
 
@@ -403,11 +409,11 @@ function populateGridSizes(index, type) {
 
       // CAS A : Pas de 'tailleEnfant' définie dans l'inventaire
       if (!range) {
-        // Nettoyage strict : on extrait uniquement les chiffres et décimales (ex: '10"' -> 10, ' 10 ' -> 10)
+        // Nettoyage strict : on extrait uniquement les chiffres et décimales
         const matchTaille = strTaille.replace(',', '.').match(/\d+(\.\d+)?/);
         const numTaille = matchTaille ? parseFloat(matchTaille[0]) : null;
 
-        // PATINS : Pointure mesurée ± 1 (ex: mesure = 32 -> accepte 31, 32, 33)
+        // PATINS : Pointure mesurée ± 1
         if (type === "Patins") {
           if (numTaille !== null) {
             return Math.abs(Math.round(numTaille) - Math.round(measure)) <= 1;
@@ -415,33 +421,36 @@ function populateGridSizes(index, type) {
           return false;
         }
 
-        // GANTS : Comparaison numérique exacte après nettoyage (ignore les guillemets ou espaces)
+        // GANTS : Comparaison
         if (type === "Gants") {
-          if (numTaille !== null) {
-            return numTaille === measure;
-          }
-          // Si la taille est un texte brut sans chiffre (ex: "S", "M")
-          return strTaille.trim().toLowerCase() === String(measure).trim().toLowerCase();
+          const matchResult = (numTaille !== null) 
+            ? (numTaille === Number(measure))
+            : (strTaille.trim().toLowerCase() === String(measure).trim().toLowerCase());
+
+          // LOG DEBUG Spécifique aux Gants
+          console.log(`🔍 [Test Gants] Taille stock: "${taille}" (ext: ${numTaille}) vs Mesure adh: "${measure}" -> Match: ${matchResult}`);
+          
+          return matchResult;
         }
 
         // AUTRES ÉQUIPEMENTS SANS TAILLE ENFANT
         if (numTaille !== null) {
-          return numTaille === measure;
+          return numTaille === Number(measure);
         }
 
         return true;
       }
 
-      // CAS B : Plage min/max identique (ex: "10" -> min:10, max:10)
+      // CAS B : Plage min/max identique
       if (range.min === range.max) {
         if (type === "Patins") {
           return Math.abs(Math.round(measure) - Math.round(range.min)) <= 1;
         }
-        return measure === range.min;
+        return Number(measure) === range.min;
       }
 
       // CAS C : Plage standard (ex: "110-120")
-      return measure >= range.min && measure <= range.max;
+      return Number(measure) >= range.min && Number(measure) <= range.max;
     });
 
     if (isRecommended) recommendedCount++;
@@ -454,6 +463,9 @@ function populateGridSizes(index, type) {
       sizeSelect.appendChild(opt);
     }
   });
+
+  console.log(`✅ Nombre de tailles préconisées ajoutées au menu : ${recommendedCount}`);
+  console.groupEnd();
 
   if (recommendedCount === 0 && !showAllSizesOverride && type !== "Crosse" && availableSizes.length > 0) {
     const opt = document.createElement("option");
