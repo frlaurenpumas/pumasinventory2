@@ -403,54 +403,55 @@ function populateGridSizes(index, type) {
       if (type === "Crosse") return false;
 
       // Si pas de mesure renseignée pour l'adhérent
-      if (measure === null) return true;
+      if (measure === null || measure === undefined || measure === "") return true;
 
+      const numMeasure = parseFloat(measure);
       const range = parseTailleEnfantRange(eq.tailleEnfant);
 
       // CAS A : Pas de 'tailleEnfant' définie dans l'inventaire
       if (!range) {
-        // Nettoyage strict : on extrait uniquement les chiffres et décimales
+        // Nettoyage strict : extrait les chiffres et décimales (ex: "32.5" -> 32.5)
         const matchTaille = strTaille.replace(',', '.').match(/\d+(\.\d+)?/);
         const numTaille = matchTaille ? parseFloat(matchTaille[0]) : null;
 
-        // PATINS : Pointure mesurée ± 1
+        // PATINS : Marge de ± 1 pointure sur les nombres réels (ex: mesure = 32 -> préconise 31, 31.5, 32, 32.5, 33)
         if (type === "Patins") {
-          if (numTaille !== null) {
-            return Math.abs(Math.round(numTaille) - Math.round(measure)) <= 1;
+          if (numTaille !== null && !isNaN(numMeasure)) {
+            const matchPatins = Math.abs(numTaille - numMeasure) <= 1;
+            console.log(`🔍 [Test Patins] Pointure stock: ${numTaille} vs Mesure adh: ${numMeasure} (Écart: ${Math.abs(numTaille - numMeasure)}) -> Match: ${matchPatins}`);
+            return matchPatins;
           }
           return false;
         }
 
-        // GANTS : Comparaison
+        // GANTS : Comparaison numérique exacte
         if (type === "Gants") {
-          const matchResult = (numTaille !== null) 
-            ? (numTaille === Number(measure))
+          const matchResult = (numTaille !== null && !isNaN(numMeasure)) 
+            ? (numTaille === numMeasure)
             : (strTaille.trim().toLowerCase() === String(measure).trim().toLowerCase());
 
-          // LOG DEBUG Spécifique aux Gants
           console.log(`🔍 [Test Gants] Taille stock: "${taille}" (ext: ${numTaille}) vs Mesure adh: "${measure}" -> Match: ${matchResult}`);
-          
           return matchResult;
         }
 
         // AUTRES ÉQUIPEMENTS SANS TAILLE ENFANT
-        if (numTaille !== null) {
-          return numTaille === Number(measure);
+        if (numTaille !== null && !isNaN(numMeasure)) {
+          return numTaille === numMeasure;
         }
 
         return true;
       }
 
-      // CAS B : Plage min/max identique
+      // CAS B : Plage min/max identique (ex: "32.5" -> min: 32.5, max: 32.5)
       if (range.min === range.max) {
-        if (type === "Patins") {
-          return Math.abs(Math.round(measure) - Math.round(range.min)) <= 1;
+        if (type === "Patins" && !isNaN(numMeasure)) {
+          return Math.abs(numMeasure - range.min) <= 1;
         }
-        return Number(measure) === range.min;
+        return numMeasure === range.min;
       }
 
       // CAS C : Plage standard (ex: "110-120")
-      return Number(measure) >= range.min && Number(measure) <= range.max;
+      return !isNaN(numMeasure) && numMeasure >= range.min && numMeasure <= range.max;
     });
 
     if (isRecommended) recommendedCount++;
@@ -472,44 +473,6 @@ function populateGridSizes(index, type) {
     opt.disabled = true;
     opt.textContent = "Aucune taille préconisée (Cocher 'Afficher tout')";
     sizeSelect.appendChild(opt);
-  }
-}
-
-function onGridSizeChange(index, type) {
-  const sizeSelect = document.getElementById(`grid-size-${index}`);
-  const modelSelect = document.getElementById(`grid-model-${index}`);
-  const stockSpan = document.getElementById(`grid-stock-${index}`);
-  
-  const selectedSize = sizeSelect.value;
-  modelSelect.innerHTML = '<option value="">-- Choisir un modèle --</option>';
-  stockSpan.textContent = "-";
-
-  if (!selectedSize) {
-    modelSelect.innerHTML = '<option value="">-- Choisir une taille d\'abord --</option>';
-    return;
-  }
-
-  // Équipements filtrés avec comparaison stricte sous forme de chaîne
-  const matchingItems = allInventoryCache.filter(eq => 
-    eq.type === type && 
-    String(eq.taille) === String(selectedSize) && 
-    eq.statut === "en_stock"
-  );
-
-  const availableModels = [...new Set(
-    matchingItems.map(eq => `${eq.marque || 'Sans Marque'} | ${eq.modele || 'Modèle unique'}`)
-  )];
-
-  availableModels.forEach(m => {
-    const opt = document.createElement("option");
-    opt.value = m;
-    opt.textContent = m;
-    modelSelect.appendChild(opt);
-  });
-
-  if (availableModels.length === 1) {
-    modelSelect.value = availableModels[0];
-    onGridModelChange(index, type);
   }
 }
 
