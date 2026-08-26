@@ -380,12 +380,9 @@ function populateGridSizes(index, type) {
   const measure = getAdherentMeasureForType(type, currentAdherentC2);
   const inStockEquipment = allInventoryCache.filter(eq => eq.type === type && eq.statut === "en_stock");
 
-  // LOG DEBUG : Mesure & Inventaire disponible
   console.group(`[DEBUG Grid] ${type} (Index: ${index})`);
   console.log("➡️ Mesure Adhérent reçue :", measure, "| Type:", typeof measure);
-  console.log("➡️ Équipements en stock trouvés dans la base :", inStockEquipment);
-
-  // Tailles uniques disponibles en stock
+  
   const availableSizes = [...new Set(inStockEquipment.map(eq => eq.taille))].filter(Boolean);
   console.log("➡️ Tailles uniques extraites du stock :", availableSizes);
 
@@ -399,58 +396,50 @@ function populateGridSizes(index, type) {
     const isRecommended = inStockEquipment.some(eq => {
       if (String(eq.taille) !== strTaille) return false;
 
-      // CROSSES : Aucune préconisation automatique
+      // 1. CROSSES : Aucune préconisation
       if (type === "Crosse") return false;
 
-      // Si pas de mesure renseignée pour l'adhérent
+      // 2. Si pas de mesure renseignée pour l'adhérent
       if (measure === null || measure === undefined || measure === "") return true;
 
       const numMeasure = parseFloat(measure);
+
+      // Extraction du nombre dans la taille du stock (ex: "9"" -> 9, "9" -> 9)
+      const matchTaille = strTaille.replace(',', '.').match(/\d+(\.\d+)?/);
+      const numTaille = matchTaille ? parseFloat(matchTaille[0]) : null;
+
+      // 3. GANTS : Comparaison numérique directe (Ignore volontairement 'tailleEnfant')
+      if (type === "Gants") {
+        const matchGants = (numTaille !== null && !isNaN(numMeasure)) 
+          ? (numTaille === numMeasure)
+          : (strTaille.trim().toLowerCase() === String(measure).trim().toLowerCase());
+
+        console.log(`🔍 [Test Gants] Taille stock: "${taille}" (${numTaille}) vs Mesure adh: "${measure}" -> Match: ${matchGants}`);
+        return matchGants;
+      }
+
+      // 4. PATINS : Pointure ± 1 (Ignore aussi 'tailleEnfant')
+      if (type === "Patins") {
+        if (numTaille !== null && !isNaN(numMeasure)) {
+          return Math.abs(numTaille - numMeasure) <= 1;
+        }
+        return false;
+      }
+
+      // 5. AUTRES ÉQUIPEMENTS (Plastrons, Jambières...) : On utilise 'tailleEnfant' si présent
       const range = parseTailleEnfantRange(eq.tailleEnfant);
 
-      // CAS A : Pas de 'tailleEnfant' définie dans l'inventaire
       if (!range) {
-        // Nettoyage strict : extrait les chiffres et décimales (ex: "32.5" -> 32.5)
-        const matchTaille = strTaille.replace(',', '.').match(/\d+(\.\d+)?/);
-        const numTaille = matchTaille ? parseFloat(matchTaille[0]) : null;
-
-        // PATINS : Marge de ± 1 pointure sur les nombres réels (ex: mesure = 32 -> préconise 31, 31.5, 32, 32.5, 33)
-        if (type === "Patins") {
-          if (numTaille !== null && !isNaN(numMeasure)) {
-            const matchPatins = Math.abs(numTaille - numMeasure) <= 1;
-            console.log(`🔍 [Test Patins] Pointure stock: ${numTaille} vs Mesure adh: ${numMeasure} (Écart: ${Math.abs(numTaille - numMeasure)}) -> Match: ${matchPatins}`);
-            return matchPatins;
-          }
-          return false;
-        }
-
-        // GANTS : Comparaison numérique exacte
-        if (type === "Gants") {
-          const matchResult = (numTaille !== null && !isNaN(numMeasure)) 
-            ? (numTaille === numMeasure)
-            : (strTaille.trim().toLowerCase() === String(measure).trim().toLowerCase());
-
-          console.log(`🔍 [Test Gants] Taille stock: "${taille}" (ext: ${numTaille}) vs Mesure adh: "${measure}" -> Match: ${matchResult}`);
-          return matchResult;
-        }
-
-        // AUTRES ÉQUIPEMENTS SANS TAILLE ENFANT
         if (numTaille !== null && !isNaN(numMeasure)) {
           return numTaille === numMeasure;
         }
-
         return true;
       }
 
-      // CAS B : Plage min/max identique (ex: "32.5" -> min: 32.5, max: 32.5)
       if (range.min === range.max) {
-        if (type === "Patins" && !isNaN(numMeasure)) {
-          return Math.abs(numMeasure - range.min) <= 1;
-        }
         return numMeasure === range.min;
       }
 
-      // CAS C : Plage standard (ex: "110-120")
       return !isNaN(numMeasure) && numMeasure >= range.min && numMeasure <= range.max;
     });
 
