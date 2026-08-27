@@ -585,6 +585,10 @@ function importInventoryCSV() {
         const modeleVal = row["Modèle"] || row["Modele"] || row["modele"] || "";
         const tailleVal = row["Taille"] || row["taille"] || "";
         const tailleEnfantVal = row["Taille enfant"] || row["Taille Enfant"] || row["tailleEnfant"] || "";
+        
+        // Gestion de Taille Max (conversion numérique)
+        const rawTailleMax = row["Taille Max (cm)"] || row["Taille Max"] || row["Taille MAX"] || row["tailleMax"] || row["taille_max"] || "";
+        const parsedTailleMax = rawTailleMax !== "" ? Number(rawTailleMax) : null;
 
         const docRef = db.collection("equipment").doc();
         batch.set(docRef, {
@@ -593,6 +597,7 @@ function importInventoryCSV() {
           modele: modeleVal.trim(),
           taille: tailleVal.trim(),
           tailleEnfant: tailleEnfantVal.trim(),
+          tailleMax: parsedTailleMax !== null && !isNaN(parsedTailleMax) ? parsedTailleMax : null,
           statut: "en_stock",
           importedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
