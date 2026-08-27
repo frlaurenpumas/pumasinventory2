@@ -2,7 +2,23 @@
 let currentAdherentC2 = null;
 let allInventoryCache = [];
 let assignedEquipmentCache = [];
-let showAllSizesOverride = false; // Option de débrayage
+
+// Définition des 2 groupes d'équipements pour le Comptoir 2
+const MANDATORY_EQUIPMENTS = [
+  { type: "Casque", label: "Casque" },
+  { type: "Plastron", label: "Plastron" },
+  { type: "Coudières", label: "Coudières" },
+  { type: "Gants", label: "Gants" },
+  { type: "Culotte", label: "Culotte" },
+  { type: "Jambières", label: "Jambières" },
+  { type: "Patins", label: "Patins" }
+];
+
+const OPTIONAL_EQUIPMENTS = [
+  { type: "Crosse", label: "Crosse" },
+  { type: "Maillot", label: "Maillot" },
+  { type: "Sac", label: "Sac" }
+];
 
 // Initialisation au chargement de la page
 document.addEventListener("DOMContentLoaded", () => {
@@ -126,7 +142,6 @@ function loadAllAdherentsC1() {
         return;
       }
 
-      // Récupération et tri secondaire JS sur le prénom (Firestore ne trie que sur le 1er champ sans index composé)
       const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       list.sort((a, b) => {
         const nomCompare = (a.nom || "").localeCompare(b.nom || "", 'fr', { sensitivity: 'base' });
@@ -200,18 +215,27 @@ function listenToQueueC2() {
 
 async function selectAdherentC2(adh) {
   currentAdherentC2 = adh;
-  document.getElementById("c2-workarea").style.display = "block";
-  document.getElementById("c2-adh-fullname").textContent = `${adh.nom} ${adh.prenom}`;
-  document.getElementById("c2-adh-cat").textContent = adh.categorie || "N/A";
+  const workarea = document.getElementById("c2-workarea");
+  if (workarea) workarea.style.display = "block";
 
-  document.getElementById("c2-adh-measures").innerHTML = `
-    Taille: <b>${adh.tailleCm || '-'} cm</b> | Tête: <b>${adh.tourTeteCm || '-'} cm</b><br>
-    Main: <b>${adh.tailleMainInch || '-'}</b> | Pointure: <b>${adh.pointure || '-'}</b>
-  `;
+  const nameEl = document.getElementById("c2-adh-fullname");
+  const catEl = document.getElementById("c2-adh-cat");
+  if (nameEl) nameEl.textContent = `${(adh.nom || '').toUpperCase()} ${adh.prenom || ''}`;
+  if (catEl) catEl.textContent = adh.categorie || "N/A";
 
   await loadInventory();
-  renderAttributionGrid();
+  
+  // Génération des deux grilles d'attribution (Obligatoire + Facultatif)
+  renderGridSection(MANDATORY_EQUIPMENTS, "grid-mandatory-body", true);
+  renderGridSection(OPTIONAL_EQUIPMENTS, "grid-optional-body", false);
+  updateMandatoryCounter();
+
   listenToAssignedEquipment(adh.id);
+}
+
+async function loadInventory() {
+  const snapshot = await db.collection("equipment").get();
+  allInventoryCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
 function listenToAssignedEquipment(adhId) {
@@ -238,7 +262,7 @@ function renderAssignedTable() {
       <td>${item.marque || ''} ${item.modele || ''}</td>
       <td>${item.taille}</td>
       <td>${dateStr}</td>
-      <td><button class="btn btn-danger" onclick="returnEquipment('${item.id}', '${item.eqId}')">Échanger / Restituer</button></td>
+      <td><button type="button" class="btn btn-danger" onclick="returnEquipment('${item.id}', '${item.eqId}')">Échanger / Restituer</button></td>
     `;
     tbody.appendChild(tr);
   });
@@ -246,249 +270,171 @@ function renderAssignedTable() {
 
 function checkPackAndAlerts() {
   if (!currentAdherentC2) return;
-  const isEDH = currentAdherentC2.categorie === "EDH";
-  
-  const basePack = ["Casque", "Plastron", "Coudières", "Culotte", "Jambières", "Patins", "Sac"];
-  if (isEDH) basePack.push("Maillot");
-  else basePack.push("Crosse");
 
-  const requiredItems = ["Casque", "Plastron", "Coudières", "Culotte", "Jambières", "Patins"];
-  
+  const requiredItems = ["Casque", "Plastron", "Coudières", "Gants", "Culotte", "Jambières", "Patins"];
   const assignedTypes = assignedEquipmentCache.map(i => i.type);
   
-  const countAssigned = basePack.filter(type => assignedTypes.includes(type)).length;
-  const pct = Math.round((countAssigned / basePack.length) * 100);
-  document.getElementById("c2-pack-progress").style.width = `${pct}%`;
-  document.getElementById("c2-pack-count").textContent = `${countAssigned} / ${basePack.length} pièces attribuées (${pct}%)`;
-
   const alertsContainer = document.getElementById("c2-alerts");
+  if (!alertsContainer) return;
   alertsContainer.innerHTML = "";
 
   const duplicates = assignedTypes.filter((item, index) => assignedTypes.indexOf(item) !== index);
   if (duplicates.length > 0) {
-    alertsContainer.innerHTML += `<div class="alert alert-danger">⚠️ Doublon détecté : ${[...new Set(duplicates)].join(", ")}</div>`;
+    alertsContainer.innerHTML += `<div class="alert alert-danger" style="color:red; font-weight:bold; margin-bottom:10px;">⚠️ Doublon détecté : ${[...new Set(duplicates)].join(", ")}</div>`;
   }
 
   const missing = requiredItems.filter(type => !assignedTypes.includes(type));
   if (missing.length > 0) {
-    alertsContainer.innerHTML += `<div class="alert alert-warning">⚠️ Équipements obligatoires manquants : ${missing.join(", ")}</div>`;
+    alertsContainer.innerHTML += `<div class="alert alert-warning" style="color:#b78103; font-weight:bold; margin-bottom:10px;">⚠️ Équipements obligatoires manquants en fiche : ${missing.join(", ")}</div>`;
   }
 }
 
-async function loadInventory() {
-  const snapshot = await db.collection("equipment").get();
-  allInventoryCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+async function returnEquipment(loanId, eqId) {
+  if (!confirm("Voulez-vous vraiment échanger ou restituer cet équipement ?")) return;
+
+  const batch = db.batch();
+  
+  const loanRef = db.collection("loans").doc(loanId);
+  batch.update(loanRef, {
+    statut: "restitue",
+    dateRestitution: firebase.firestore.FieldValue.serverTimestamp()
+  });
+
+  const eqRef = db.collection("equipment").doc(eqId);
+  batch.update(eqRef, { statut: "en_stock" });
+
+  await batch.commit();
+  await loadInventory();
+
+  // Rafraîchit les sélecteurs de grille
+  renderGridSection(MANDATORY_EQUIPMENTS, "grid-mandatory-body", true);
+  renderGridSection(OPTIONAL_EQUIPMENTS, "grid-optional-body", false);
+  updateMandatoryCounter();
 }
 
-// --- LOGIQUE D'ATTRIBUTION PAR TAILLE ENFANT ---
+// --- LOGIQUE D'ATTRIBUTION PAR TABLEAU COMPTOIR 2 ---
 
-const EQUIPMENT_TYPES = [
-  "Casque",
-  "Plastron",
-  "Coudières",
-  "Gants",
-  "Culotte",
-  "Jambières",
-  "Patins",
-  "Crosse",
-  "Maillot",
-  "Sac"
-];
-
-// Extrait min et max d'une chaîne du type "110-120"
-function parseTailleEnfantRange(tailleStr) {
-  if (!tailleStr) return null;
-  const cleanStr = String(tailleStr).replace(/\s+/g, '');
-  const parts = cleanStr.split("-").map(Number);
-  
-  if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-    return { min: parts[0], max: parts[1] };
-  } else if (parts.length === 1 && !isNaN(parts[0])) {
-    return { min: parts[0], max: parts[0] };
-  }
-  return null;
-}
-
-// Sélectionne la bonne valeur de mesure de l'adhérent selon le type d'équipement
-function getAdherentMeasureForType(type, adh) {
-  if (!adh) return null;
-  
-  const cleanNumber = (val) => {
-    if (val === null || val === undefined || val === "") return null;
-    // Extrait les chiffres et le point décimal (ex: '10"' -> 10, '34.5' -> 34.5)
-    const match = String(val).replace(',', '.').match(/\d+(\.\d+)?/);
-    return match ? parseFloat(match[0]) : null;
-  };
-
+function getFormattedMeasure(type, adh) {
+  if (!adh) return "N/C";
   switch (type) {
     case "Casque":
-      return cleanNumber(adh.tourTeteCm);
+      return adh.tourTeteCm ? `${adh.tourTeteCm} cm` : "N/C";
     case "Patins":
-      return cleanNumber(adh.pointure);
+      return adh.pointure ? `${adh.pointure}` : "N/C";
     case "Gants":
-      return cleanNumber(adh.tailleMainInch);
+      return adh.tailleMainInch ? `${adh.tailleMainInch}"` : "N/C";
     case "Crosse":
-      return null;
+    case "Sac":
+      return "N/C";
     default:
-      return cleanNumber(adh.tailleCm);
+      // Plastron, Coudières, Culotte, Jambières, Maillot
+      return adh.tailleCm ? `${(adh.tailleCm / 100).toFixed(2).replace('.', ',')} m` : "N/C";
   }
 }
 
-function toggleShowAllSizes(checkbox) {
-  showAllSizesOverride = checkbox.checked;
-  renderAttributionGrid();
-}
-
-// --- LOGIQUE D'ATTRIBUTION PAR TAILLE PUIS MODÈLE ---
-
-function renderAttributionGrid() {
-  const tbody = document.getElementById("grid-attribution-body");
+function renderGridSection(equipmentList, containerId, isMandatory) {
+  const tbody = document.getElementById(containerId);
   if (!tbody) return;
   tbody.innerHTML = "";
 
-  EQUIPMENT_TYPES.forEach((type, index) => {
+  equipmentList.forEach((eqConfig, index) => {
+    const key = isMandatory ? `m_${index}` : `o_${index}`;
+    const measureStr = getFormattedMeasure(eqConfig.type, currentAdherentC2);
+    
+    // Équipements disponibles
+    const itemsInStock = (allInventoryCache || []).filter(item => item.type === eqConfig.type && item.statut === "en_stock");
+    
+    // Marques et modèles uniques
+    const models = [...new Set(itemsInStock.map(i => `${i.marque || ''} ${i.modele || ''}`.trim()))].filter(Boolean);
+
     const tr = document.createElement("tr");
+    tr.style.borderBottom = "1px solid #eee";
     tr.innerHTML = `
-      <td>
-        <strong>${type}</strong>
-        <input type="hidden" name="type_${index}" value="${type}">
+      <td style="padding: 8px;">
+        <strong>${eqConfig.label}</strong><br>
+        <small style="color: #666;">Mesure : <strong>${measureStr}</strong></small>
       </td>
-      <td>
-        <select id="grid-size-${index}" class="form-control" onchange="onGridSizeChange(${index}, '${type}')">
-          <option value="">-- Choisir une taille --</option>
+      <td style="padding: 8px;">
+        <select id="grid-model-${key}" data-type="${eqConfig.type}" onchange="onGridChange('${key}', '${eqConfig.type}')" style="width: 100%; padding: 5px;">
+          <option value="">-- Marque / Modèle --</option>
+          ${models.map(m => `<option value="${m}">${m}</option>`).join('')}
         </select>
       </td>
-      <td>
-        <select id="grid-model-${index}" class="form-control" onchange="onGridModelChange(${index}, '${type}')">
-          <option value="">-- Choisir une taille d'abord --</option>
+      <td style="padding: 8px;">
+        <select id="grid-size-${key}" data-type="${eqConfig.type}" onchange="onGridChange('${key}', '${eqConfig.type}')" style="width: 100%; padding: 5px;">
+          <option value="">-- Taille --</option>
         </select>
       </td>
-      <td class="text-center">
-        <span id="grid-stock-${index}" class="badge-stock">-</span>
+      <td style="padding: 8px; text-align: center;">
+        <span id="grid-stock-${key}" style="font-weight: bold; color: #666;">-</span>
       </td>
     `;
     tbody.appendChild(tr);
 
-    populateGridSizes(index, type);
+    populateSizesSimple(key, eqConfig.type);
   });
 }
 
-function populateGridSizes(index, type) {
-  const sizeSelect = document.getElementById(`grid-size-${index}`);
+function populateSizesSimple(key, type) {
+  const sizeSelect = document.getElementById(`grid-size-${key}`);
   if (!sizeSelect) return;
 
-  const measure = getAdherentMeasureForType(type, currentAdherentC2);
-  const inStockEquipment = allInventoryCache.filter(eq => eq.type === type && eq.statut === "en_stock");
+  const itemsInStock = (allInventoryCache || []).filter(item => item.type === type && item.statut === "en_stock");
+  const sizes = [...new Set(itemsInStock.map(item => item.taille))].filter(Boolean);
 
-  console.group(`[DEBUG Grid] ${type} (Index: ${index})`);
-  console.log("➡️ Mesure Adhérent reçue :", measure, "| Type:", typeof measure);
-  
-  const availableSizes = [...new Set(inStockEquipment.map(eq => eq.taille))].filter(Boolean);
-  console.log("➡️ Tailles uniques extraites du stock :", availableSizes);
+  // Tri naturel des tailles (numérique puis alphabétique)
+  sizes.sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' }));
 
-  sizeSelect.innerHTML = '<option value="">-- Choisir une taille --</option>';
+  sizeSelect.innerHTML = '<option value="">-- Taille --</option>';
+  sizes.forEach(size => {
+    const opt = document.createElement("option");
+    opt.value = size;
+    opt.textContent = size;
+    sizeSelect.appendChild(opt);
+  });
+}
 
-  let recommendedCount = 0;
+function onGridChange(key, type) {
+  const modelVal = document.getElementById(`grid-model-${key}`)?.value;
+  const sizeVal = document.getElementById(`grid-size-${key}`)?.value;
+  const stockSpan = document.getElementById(`grid-stock-${key}`);
 
-  availableSizes.forEach(taille => {
-    const strTaille = String(taille);
+  const matchingItems = (allInventoryCache || []).filter(item => {
+    const itemModel = `${item.marque || ''} ${item.modele || ''}`.trim();
+    const matchType = item.type === type && item.statut === "en_stock";
+    const matchModel = !modelVal || itemModel === modelVal;
+    const matchSize = !sizeVal || String(item.taille) === String(sizeVal);
+    return matchType && matchModel && matchSize;
+  });
 
-    const isRecommended = inStockEquipment.some(eq => {
-      if (String(eq.taille) !== strTaille) return false;
+  if (stockSpan) {
+    if (!modelVal && !sizeVal) {
+      stockSpan.textContent = "-";
+      stockSpan.style.color = "#666";
+    } else {
+      const count = matchingItems.length;
+      stockSpan.textContent = count;
+      stockSpan.style.color = count > 0 ? "#2e7d32" : "#c62828";
+    }
+  }
 
-      // 1. CROSSES : Aucune préconisation
-      if (type === "Crosse") return false;
+  updateMandatoryCounter();
+}
 
-      // 2. Si pas de mesure renseignée pour l'adhérent
-      if (measure === null || measure === undefined || measure === "") return true;
-
-      const numMeasure = parseFloat(measure);
-
-      // Extraction du nombre dans la taille du stock (ex: "9"" -> 9, "9" -> 9)
-      const matchTaille = strTaille.replace(',', '.').match(/\d+(\.\d+)?/);
-      const numTaille = matchTaille ? parseFloat(matchTaille[0]) : null;
-
-      // 3. GANTS : Comparaison numérique directe (Ignore volontairement 'tailleEnfant')
-      if (type === "Gants") {
-        const matchGants = (numTaille !== null && !isNaN(numMeasure)) 
-          ? (numTaille === numMeasure)
-          : (strTaille.trim().toLowerCase() === String(measure).trim().toLowerCase());
-
-        console.log(`🔍 [Test Gants] Taille stock: "${taille}" (${numTaille}) vs Mesure adh: "${measure}" -> Match: ${matchGants}`);
-        return matchGants;
-      }
-
-      // 4. PATINS : Pointure ± 1 (Ignore aussi 'tailleEnfant')
-      if (type === "Patins") {
-        if (numTaille !== null && !isNaN(numMeasure)) {
-          return Math.abs(numTaille - numMeasure) <= 1;
-        }
-        return false;
-      }
-
-      // 5. AUTRES ÉQUIPEMENTS (Plastrons, Jambières...) : On utilise 'tailleEnfant' si présent
-      const range = parseTailleEnfantRange(eq.tailleEnfant);
-
-      if (!range) {
-        if (numTaille !== null && !isNaN(numMeasure)) {
-          return numTaille === numMeasure;
-        }
-        return true;
-      }
-
-      if (range.min === range.max) {
-        return numMeasure === range.min;
-      }
-
-      return !isNaN(numMeasure) && numMeasure >= range.min && numMeasure <= range.max;
-    });
-
-    if (isRecommended) recommendedCount++;
-
-    if (isRecommended || showAllSizesOverride || type === "Crosse") {
-      const opt = document.createElement("option");
-      opt.value = strTaille;
-      opt.textContent = isRecommended ? `${strTaille} (Préconisé)` : strTaille;
-      if (isRecommended) opt.style.fontWeight = "bold";
-      sizeSelect.appendChild(opt);
+function updateMandatoryCounter() {
+  let count = 0;
+  MANDATORY_EQUIPMENTS.forEach((_, index) => {
+    const sizeSelect = document.getElementById(`grid-size-m_${index}`);
+    if (sizeSelect && sizeSelect.value !== "") {
+      count++;
     }
   });
 
-  console.log(`✅ Nombre de tailles préconisées ajoutées au menu : ${recommendedCount}`);
-  console.groupEnd();
-
-  if (recommendedCount === 0 && !showAllSizesOverride && type !== "Crosse" && availableSizes.length > 0) {
-    const opt = document.createElement("option");
-    opt.disabled = true;
-    opt.textContent = "Aucune taille préconisée (Cocher 'Afficher tout')";
-    sizeSelect.appendChild(opt);
+  const badge = document.getElementById("c2-mandatory-counter");
+  if (badge) {
+    badge.textContent = `Complet : ${count} / ${MANDATORY_EQUIPMENTS.length}`;
+    badge.style.backgroundColor = count === MANDATORY_EQUIPMENTS.length ? "#2e7d32" : "#ff9800";
   }
-}
-
-function onGridModelChange(index, type) {
-  const sizeSelect = document.getElementById(`grid-size-${index}`);
-  const modelSelect = document.getElementById(`grid-model-${index}`);
-  const stockSpan = document.getElementById(`grid-stock-${index}`);
-
-  const selectedSize = sizeSelect.value;
-  const selectedModelStr = modelSelect.value;
-
-  if (!selectedSize || !selectedModelStr) {
-    stockSpan.textContent = "-";
-    return;
-  }
-
-  const [marque, modele] = selectedModelStr.split(" | ");
-
-  const count = allInventoryCache.filter(eq => 
-    eq.type === type && 
-    eq.taille === selectedSize && 
-    (eq.marque || 'Sans Marque') === marque && 
-    (eq.modele || 'Modèle unique') === modele && 
-    eq.statut === "en_stock"
-  ).length;
-
-  stockSpan.textContent = `${count} dispo`;
 }
 
 async function assignAllEquipment(e) {
@@ -498,23 +444,26 @@ async function assignAllEquipment(e) {
   const batch = db.batch();
   let itemsAssignedCount = 0;
 
-  for (let i = 0; i < EQUIPMENT_TYPES.length; i++) {
-    const type = EQUIPMENT_TYPES[i];
-    const sizeSelect = document.getElementById(`grid-size-${i}`);
-    const modelSelect = document.getElementById(`grid-model-${i}`);
+  const processList = [
+    ...MANDATORY_EQUIPMENTS.map((eq, i) => ({ type: eq.type, key: `m_${i}` })),
+    ...OPTIONAL_EQUIPMENTS.map((eq, i) => ({ type: eq.type, key: `o_${i}` }))
+  ];
 
-    if (sizeSelect && modelSelect && sizeSelect.value && modelSelect.value) {
+  for (const itemConfig of processList) {
+    const modelSelect = document.getElementById(`grid-model-${itemConfig.key}`);
+    const sizeSelect = document.getElementById(`grid-size-${itemConfig.key}`);
+
+    if (modelSelect && sizeSelect && modelSelect.value && sizeSelect.value) {
+      const selectedModel = modelSelect.value;
       const selectedSize = sizeSelect.value;
-      const [marque, modele] = modelSelect.value.split(" | ");
 
-      // Recherche sécurisée avec conversion String(eq.taille)
-      const itemToAssign = allInventoryCache.find(eq => 
-        eq.type === type && 
-        String(eq.taille) === String(selectedSize) && 
-        (eq.marque || 'Sans Marque') === marque && 
-        (eq.modele || 'Modèle unique') === modele && 
-        eq.statut === "en_stock"
-      );
+      const itemToAssign = allInventoryCache.find(eq => {
+        const itemModel = `${eq.marque || ''} ${eq.modele || ''}`.trim();
+        return eq.type === itemConfig.type &&
+               itemModel === selectedModel &&
+               String(eq.taille) === String(selectedSize) &&
+               eq.statut === "en_stock";
+      });
 
       if (itemToAssign) {
         const eqRef = db.collection("equipment").doc(itemToAssign.id);
@@ -540,13 +489,17 @@ async function assignAllEquipment(e) {
   }
 
   if (itemsAssignedCount === 0) {
-    alert("Veuillez sélectionner au moins un équipement complet (Taille + Modèle).");
+    alert("Veuillez sélectionner au moins un équipement complet (Marque/Modèle + Taille).");
     return;
   }
 
   await batch.commit();
   await loadInventory();
-  renderAttributionGrid();
+
+  // Réinitialise la grille et met à jour
+  renderGridSection(MANDATORY_EQUIPMENTS, "grid-mandatory-body", true);
+  renderGridSection(OPTIONAL_EQUIPMENTS, "grid-optional-body", false);
+  updateMandatoryCounter();
 }
 
 async function closeRemiseSession() {
@@ -558,7 +511,8 @@ async function closeRemiseSession() {
   });
 
   alert(`Session clôturée pour ${currentAdherentC2.nom} ${currentAdherentC2.prenom}. Statut passé à "Équipé".`);
-  document.getElementById("c2-workarea").style.display = "none";
+  const workarea = document.getElementById("c2-workarea");
+  if (workarea) workarea.style.display = "none";
   currentAdherentC2 = null;
 }
 
@@ -623,12 +577,11 @@ function importInventoryCSV() {
   Papa.parse(fileInput.files[0], {
     header: true,
     skipEmptyLines: true,
-    transformHeader: (h) => h.trim(), // Nettoie les espaces et caractères invisibles
+    transformHeader: (h) => h.trim(),
     complete: async (results) => {
       const batch = db.batch();
 
       results.data.forEach(row => {
-        // Recherche tolérante selon les variations de clés possibles
         const typeVal = row["Type équipement"] || row["Type equipement"] || row["Type"] || row["type"] || "";
         const marqueVal = row["Marque"] || row["marque"] || "";
         const modeleVal = row["Modèle"] || row["Modele"] || row["modele"] || "";
@@ -650,7 +603,6 @@ function importInventoryCSV() {
       await batch.commit();
       alert(`Importation réussie : ${results.data.length} équipements ajoutés.`);
       
-      // Recharge l'inventaire en mémoire s'il existe
       if (typeof loadInventory === "function") {
         await loadInventory();
       }
