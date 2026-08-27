@@ -546,13 +546,20 @@ function importAdherentsCSV() {
       for (const row of results.data) {
         let rawDate = row["Date Naissance"] || row["DateNaissance"] || row["dateNaissance"] || "";
         let formattedDate = formatDateToISO(rawDate);
+        
+        // Récupère la catégorie du CSV ou la calcule à partir de la date
+        let cat = row["Catégorie"] || row["Categorie"] || "";
+        if (!cat && formattedDate) {
+          cat = calculateCategory(formattedDate);
+        }
 
         const docRef = db.collection("adherents").doc();
         await docRef.set({
           nom: row["Nom"] || "",
           prenom: row["Prénom"] || "",
           dateNaissance: formattedDate,
-          categorie: row["Catégorie"] || "",
+          categorie: cat,
+          email: row["Email"] || row["Adresse mail de contact"] || row["email"] || "",
           tailleCm: Number(row["Taille (cm)"]) || null,
           tourTeteCm: Number(row["Tour de tête (cm)"]) || null,
           tailleMainInch: row["Taille Main(inch)"] || "",
@@ -631,15 +638,16 @@ async function exportAdherentsCSV() {
   const data = snapshot.docs.map(doc => {
     const d = doc.data();
     return {
-      "Nom": d.nom,
-      "Prénom": d.prenom,
-      "Date Naissance": d.dateNaissance,
-      "Catégorie": d.categorie,
-      "Taille (cm)": d.tailleCm,
-      "Tour de tête (cm)": d.tourTeteCm,
-      "Taille Main(inch)": d.tailleMainInch,
-      "Pointure": d.pointure,
-      "Statut": d.statut
+      "Nom": d.nom || "",
+      "Prénom": d.prenom || "",
+      "Date Naissance": d.dateNaissance || "",
+      "Catégorie": d.categorie || "",
+      "Email": d.email || "", // <-- Nouveau champ ajouté ici
+      "Taille (cm)": d.tailleCm || "",
+      "Tour de tête (cm)": d.tourTeteCm || "",
+      "Taille Main(inch)": d.tailleMainInch || "",
+      "Pointure": d.pointure || "",
+      "Statut": d.statut || ""
     };
   });
 
