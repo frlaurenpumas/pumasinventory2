@@ -30,82 +30,96 @@
 
   <main>
     <!-- COMPTOIR 1 -->
-    <section id="comptoir1" class="tab-content active">
-      <h2>Comptoir 1 : Accueil, Mesures & Mise à jour</h2>
-      
-      <div class="card">
-        <h3>Recherche / Création</h3>
-        <div class="search-box">
-          <input type="text" id="c1-search" placeholder="Tapez les premières lettres du Nom ou Prénom..." autocomplete="off" oninput="onSearchAdherent(this.value)">
-          <button type="button" class="btn btn-secondary" onclick="resetAdherentForm()">+ Nouvel Adhérent</button>
-        </div>
-        <ul id="c1-search-results" class="autocomplete-list"></ul>
-      </div>
+<section id="comptoir1" class="tab-content active">
+  <h2>Comptoir 1 : Accueil, Mesures & Mise à jour</h2>
+  
+  <!-- RECHERCHE / CRÉATION -->
+  <div class="card">
+    <h3>Recherche / Création</h3>
+    <div class="search-box">
+      <input type="text" id="c1-search" placeholder="Tapez les premières lettres du Nom ou Prénom..." autocomplete="off" oninput="onSearchAdherent(this.value)">
+      <button type="button" class="btn btn-secondary" onclick="resetAdherentForm()">+ Nouvel Adhérent</button>
+    </div>
+    <ul id="c1-search-results" class="autocomplete-list"></ul>
+  </div>
 
-      <div class="card">
-        <h3>Fiche Adhérent</h3>
-        <form id="form-adherent" onsubmit="saveAndSendToComptoir2(event)">
-          <input type="hidden" id="adh-id">
+  <!-- FICHE ADHÉRENT -->
+  <div class="card">
+    <h3>Fiche Adhérent</h3>
+    <form id="form-adherent" onsubmit="saveAndSendToComptoir2(event)">
+      <input type="hidden" id="adh-id">
+      
+      <!-- 1ÈRE SECTION : IDENTIFICATION -->
+      <fieldset style="border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <legend style="font-weight: bold; padding: 0 8px; color: #334155;">1. Identification</legend>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="adh-nom">Nom *</label>
+            <input type="text" id="adh-nom" required style="text-transform: uppercase;">
+          </div>
           
-          <div class="form-grid">
-            <div class="form-group">
-              <label>Nom *</label>
-              <input type="text" id="adh-nom" required>
-            </div>
-            <div class="form-group">
-              <label>Prénom *</label>
-              <input type="text" id="adh-prenom" required>
-            </div>
-            <div class="form-group">
-              <label>Date de Naissance *</label>
-              <input type="date" id="adh-dob" required onchange="calculateCategory()">
-            </div>
-            <div class="form-group">
-              <label>Catégorie</label>
-              <select id="adh-categorie">
-                <option value="">-- Sélectionner --</option>
-                <option value="EDH">EDH</option>
-                <option value="U7">U7</option>
-                <option value="U9">U9</option>
-                <option value="U11">U11</option>
-                <option value="U13">U13</option>
-                <option value="U15">U15</option>
-                <option value="U18">U18</option>
-                <option value="Sénior">Sénior</option>
-                <option value="Loisir">Loisir</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Taille (cm)</label>
-              <input type="number" id="adh-taille-cm" min="100" max="180">
-            </div>
-            <div class="form-group">
-              <label>Tour de tête (cm)</label>
-              <input type="number" id="adh-tete-cm" min="46" max="60">
-            </div>
-            <div class="form-group">
-              <label>Taille Main (inch)</label>
-              <select id="adh-main-inch">
-                <option value="">-- Sélectionner --</option>
-                <option value="8">8"</option>
-                <option value="9">9"</option>
-                <option value="10">10"</option>
-                <option value="11">11"</option>
-                <option value="12">12"</option>
-                <option value="13">13"</option>
-                <option value="14">14"</option>
-                <option value="15">15"</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Pointure</label>
-              <input type="number" id="adh-pointure" min="24" max="40" placeholder="ex: 32" class="w-full border rounded-lg p-2.5 bg-white">
-            </div>
+          <div class="form-group">
+            <label for="adh-prenom">Prénom *</label>
+            <input type="text" id="adh-prenom" required>
+          </div>
+          
+          <div class="form-group">
+            <label for="adh-dob">Date de Naissance *</label>
+            <input type="date" id="adh-dob" required onchange="calculateCategory()">
+          </div>
+          
+          <div class="form-group">
+            <label for="adh-categorie">Catégorie (calculée)</label>
+            <input type="text" id="adh-categorie" readonly style="background-color: #f1f5f9; cursor: not-allowed;" placeholder="Calcul automatique...">
+          </div>
+          
+          <div class="form-group" style="grid-column: span 2;">
+            <label for="adh-email">Adresse mail de contact *</label>
+            <input type="email" id="adh-email" required placeholder="ex: exemple@domaine.com">
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- 2ÈMEME SECTION : MESURES -->
+      <fieldset style="border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <legend style="font-weight: bold; padding: 0 8px; color: #334155;">2. Mesures</legend>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="adh-taille-cm">Taille (cm)</label>
+            <input type="number" id="adh-taille-cm" min="50" max="250" placeholder="ex: 175">
           </div>
 
-          <button type="submit" class="btn btn-primary mt-2">Valider et envoyer au Comptoir 2</button>
-        </form>
-      </div>
+          <div class="form-group">
+            <label for="adh-tete-cm">Tour de tête (cm)</label>
+            <input type="number" id="adh-tete-cm" min="40" max="70" placeholder="ex: 56">
+          </div>
+
+          <div class="form-group">
+            <label for="adh-main-inch">Taille Main (inch)</label>
+            <select id="adh-main-inch">
+              <option value="">-- Sélectionner --</option>
+              <option value="8">8"</option>
+              <option value="9">9"</option>
+              <option value="10">10"</option>
+              <option value="11">11"</option>
+              <option value="12">12"</option>
+              <option value="13">13"</option>
+              <option value="14">14"</option>
+              <option value="15">15"</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="adh-pointure">Pointure</label>
+            <input type="number" id="adh-pointure" min="20" max="52" placeholder="ex: 42">
+          </div>
+        </div>
+      </fieldset>
+
+      <button type="submit" class="btn btn-primary mt-2">Valider et envoyer au Comptoir 2</button>
+    </form>
+  </div>
+
   <!-- TABLEAU CONSULTATION ADHÉRENTS (COMPTOIR 1) -->
   <div class="card mt-3">
     <h3>Liste des adhérents enregistrés</h3>
@@ -229,7 +243,7 @@
         <div class="import-export-grid">
           <div class="box">
             <h4>1. Importer les Adhérents</h4>
-            <p><small>Format: Nom;Prénom;Date Naissance;Catégorie;Taille (cm);Tour de tête (cm);Taille Main(inch);Pointure</small></p>
+            <p><small>Format: Nom;Prénom;Date Naissance;Catégorie;Email;Taille (cm);Tour de tête (cm);Taille Main(inch);Pointure</small></p>
             <input type="file" id="csv-adh-file" accept=".csv">
             <button class="btn btn-secondary mt-1" onclick="importAdherentsCSV()">Importer le fichier des adhérents</button>
           </div>
