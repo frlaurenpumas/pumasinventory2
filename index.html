@@ -106,31 +106,25 @@
           <button type="submit" class="btn btn-primary mt-2">Valider et envoyer au Comptoir 2</button>
         </form>
       </div>
-      <!-- SECTION CONSULTATION DES ADHÉRENTS (Bas du Comptoir 1) -->
-<hr style="margin-top: 30px; margin-bottom: 20px;">
-
-<h3>Liste des adhérents enregistrés</h3>
-<div style="max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background-color: #fff;">
-  <table class="table table-striped" style="width: 100%; text-align: left;">
-    <thead>
-      <tr>
-        <th>Nom</th>
-        <th>Prénom</th>
-        <th>Catégorie</th>
-        <th>Date de Naissance</th>
-        <th>Pointure</th>
-        <th>Main (inch)</th>
-        <th>Statut</th>
-      </tr>
-    </thead>
-    <tbody id="c1-adherents-list-body">
-      <tr>
-        <td colspan="7" class="text-center">Chargement des adhérents...</td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-    </section>
+  <!-- TABLEAU CONSULTATION ADHÉRENTS (COMPTOIR 1) -->
+  <div class="card mt-3">
+    <h3>Liste des adhérents enregistrés</h3>
+    <table class="data-table" style="width: 100%;">
+      <thead>
+        <tr>
+          <th>Nom</th>
+          <th>Prénom</th>
+          <th>Catégorie</th>
+          <th>Date de naissance</th>
+          <th>Statut</th>
+        </tr>
+      </thead>
+      <tbody id="c1-adherents-list-body">
+        <!-- Rempli dynamiquement via JS -->
+      </tbody>
+    </table>
+  </div>
+</section>
 
 <!-- COMPTOIR 2 -->
 <section id="comptoir2" class="tab-content">
