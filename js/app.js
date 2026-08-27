@@ -630,45 +630,59 @@ async function exportAdherentsCSV() {
 }
 
 async function exportInventoryCSV() {
-  const [equipmentSnap, loansSnap, adherentsSnap] = await Promise.all([
-    db.collection("equipment").get(),
-    db.collection("loans").where("statut", "==", "attribue").get(),
-    db.collection("adherents").get()
-  ]);
+  try {
+    // 1. Récupération simultanée de l'inventaire, des prêts attribués et des adhérents
+    const [eqSnapshot, loansSnapshot, adhSnapshot] = await Promise.all([
+      db.collection("equipment").get(),
+      db.collection("loans").where("statut", "==", "attribue").get(),
+      db.collection("adherents").get()
+    ]);
 
-  const adherentsMap = new Map();
-  adherentsSnap.docs.forEach(doc => {
-    adherentsMap.set(doc.id, doc.data());
-  });
+    // Dictionnaires pour des recherches rapides O(1)
+    const adherentsMap = {};
+    adhSnapshot.forEach(doc => {
+      adherentsMap[doc.id] = doc.data();
+    });
 
-  const equipmentAssigneeMap = new Map();
-  loansSnap.docs.forEach(doc => {
-    const loan = doc.data();
-    const adh = adherentsMap.get(loan.adhId);
-    if (adh && loan.eqId) {
-      equipmentAssigneeMap.set(loan.eqId, `${adh.nom.toUpperCase()} ${adh.prenom}`);
-    }
-  });
+    const loansByEqId = {};
+    loansSnapshot.forEach(doc => {
+      const loan = doc.data();
+      if (loan.eqId) {
+        loansByEqId[loan.eqId] = loan.adhId;
+      }
+    });
 
-  const data = equipmentSnap.docs.map(doc => {
-    const d = doc.data();
-    const attribueA = d.statut === "attribue" 
-      ? (equipmentAssigneeMap.get(doc.id) || "Adhérent non trouvé") 
-      : "-";
+    // 2. Construction des lignes pour le CSV
+    const data = eqSnapshot.docs.map(doc => {
+      const d = doc.data();
+      const isAttribue = d.statut === "attribue";
+      
+      let emailContact = "";
+      if (isAttribue) {
+        const adhId = loansByEqId[doc.id];
+        if (adhId && adherentsMap[adhId]) {
+          emailContact = adherentsMap[adhId].email || adherentsMap[adhId].mail || "";
+        }
+      }
 
-    return {
-      "ID Équipement": doc.id,
-      "Type équipement": d.type,
-      "Marque": d.marque,
-      "Modèle": d.modele,
-      "Taille": d.taille,
-      "Taille enfant": d.tailleEnfant || "",
-      "Statut": d.statut === "attribue" ? "Attribué" : "En stock",
-      "Attribué à": attribueA
-    };
-  });
+      return {
+        "Type": d.type || "",
+        "Marque": d.marque || "",
+        "Modèle": d.modele || "",
+        "Taille": d.taille || "",
+        "Taille Max (cm)": d.tailleMax || "",
+        "État": d.etat || "Bon",
+        "Statut": d.statut || "en_stock",
+        "Numéro Série / Code": d.code || "",
+        "Email Contact": emailContact
+      };
+    });
 
-  downloadCSV(data, "export_inventaire_materiel.csv");
+    downloadCSV(data, "export_inventaire_materiel.csv");
+  } catch (error) {
+    console.error("Erreur lors de l'export de l'inventaire :", error);
+    alert("Impossible d'exporter l'inventaire.");
+  }
 }
 
 async function exportLoansCSV() {
