@@ -676,9 +676,7 @@ async function exportInventoryCSV() {
         "Modèle": d.modele || "",
         "Taille": d.taille || "",
         "Taille Max (cm)": d.tailleMax || "",
-        "État": d.etat || "Bon",
         "Statut": d.statut || "en_stock",
-        "Numéro Série / Code": d.code || "",
         "Email Contact": emailContact
       };
     });
@@ -695,7 +693,6 @@ async function exportInventoryCSV() {
     alert("Impossible d'exporter l'inventaire.");
   }
 }
-
 async function exportLoansCSV() {
   const snapshot = await db.collection("loans").get();
   const data = snapshot.docs.map(doc => {
