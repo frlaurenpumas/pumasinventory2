@@ -678,7 +678,13 @@ async function exportInventoryCSV() {
       };
     });
 
-    downloadCSV(data, "export_inventaire_materiel.csv");
+    // 3. Horodatage du fichier (ex: 2026-08-27_14h30)
+    const now = new Date();
+    const dateStr = now.toISOString().split("T")[0];
+    const timeStr = `${String(now.getHours()).padStart(2, "0")}h${String(now.getMinutes()).padStart(2, "0")}`;
+    const filename = `export_inventaire_materiel_${dateStr}_${timeStr}.csv`;
+
+    downloadCSV(data, filename);
   } catch (error) {
     console.error("Erreur lors de l'export de l'inventaire :", error);
     alert("Impossible d'exporter l'inventaire.");
