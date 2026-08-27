@@ -371,18 +371,15 @@ function renderGridSection(equipmentList, containerId, isMandatory) {
         <small style="color: #666;">Mesure : <strong>${measureStr}</strong></small>
       </td>
       <td style="padding: 8px;">
-        <select id="grid-model-${key}" data-type="${eqConfig.type}" onchange="onGridChange('${key}', '${eqConfig.type}')" style="width: 100%; padding: 5px;">
+        <select id="grid-model-${key}" data-type="${eqConfig.type}" onchange="onGridChange('${key}')" style="width: 100%; padding: 5px;">
           <option value="">-- Marque / Modèle --</option>
           ${models.map(m => `<option value="${m}">${m}</option>`).join('')}
         </select>
       </td>
       <td style="padding: 8px;">
-        <select id="grid-size-${key}" data-type="${eqConfig.type}" onchange="onGridChange('${key}', '${eqConfig.type}')" style="width: 100%; padding: 5px;">
+        <select id="grid-size-${key}" data-type="${eqConfig.type}" onchange="onGridChange('${key}')" style="width: 100%; padding: 5px;">
           <option value="">-- Taille --</option>
         </select>
-      </td>
-      <td style="padding: 8px; text-align: center;">
-        <span id="grid-stock-${key}" style="font-weight: bold; color: #666;">-</span>
       </td>
     `;
     tbody.appendChild(tr);
@@ -410,30 +407,8 @@ function populateSizesSimple(key, type) {
   });
 }
 
-function onGridChange(key, type) {
-  const modelVal = document.getElementById(`grid-model-${key}`)?.value;
-  const sizeVal = document.getElementById(`grid-size-${key}`)?.value;
-  const stockSpan = document.getElementById(`grid-stock-${key}`);
-
-  const matchingItems = (allInventoryCache || []).filter(item => {
-    const itemModel = `${item.marque || ''} ${item.modele || ''}`.trim();
-    const matchType = item.type === type && item.statut === "en_stock";
-    const matchModel = !modelVal || itemModel === modelVal;
-    const matchSize = !sizeVal || String(item.taille) === String(sizeVal);
-    return matchType && matchModel && matchSize;
-  });
-
-  if (stockSpan) {
-    if (!modelVal && !sizeVal) {
-      stockSpan.textContent = "-";
-      stockSpan.style.color = "#666";
-    } else {
-      const count = matchingItems.length;
-      stockSpan.textContent = count;
-      stockSpan.style.color = count > 0 ? "#2e7d32" : "#c62828";
-    }
-  }
-
+function onGridChange(key) {
+  // Met simplement à jour le compteur d'équipements obligatoires sélectionnés
   updateMandatoryCounter();
 }
 
