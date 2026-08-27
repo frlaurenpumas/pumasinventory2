@@ -64,14 +64,27 @@ function populatePointureOptions() {
 
 // --- COMPTOIR 1 : ACCUEIL & MESURES ---
 
-function calculateCategory() {
-  const dobInput = document.getElementById("adh-dob").value;
-  if (!dobInput) return;
+/**
+ * Calcule la catégorie selon l'année de naissance et l'année en cours.
+ * @param {string} [dobString] - (Optionnel) Date au format ISO "YYYY-MM-DD"
+ * @returns {string} Le code de la catégorie (EDH, U7, U9, etc.)
+ */
+function calculateCategory(dobString) {
+  // 1. Récupère la date transmise en argument ou depuis l'input du formulaire
+  const inputEl = document.getElementById("adh-dob");
+  const dobValue = dobString || (inputEl ? inputEl.value : null);
 
-  const birthYear = new Date(dobInput).getFullYear();
+  if (!dobValue) {
+    if (inputEl) document.getElementById("adh-categorie").value = "";
+    return "";
+  }
+
+  // 2. Calcul de l'âge selon l'année en cours
+  const birthYear = new Date(dobValue).getFullYear();
   const currentYear = new Date().getFullYear();
   const age = currentYear - birthYear;
-  
+
+  // 3. Attribution de la catégorie
   let cat = "";
   if (age >= 4 && age <= 5) cat = "EDH";
   else if (age <= 7) cat = "U7";
@@ -82,9 +95,13 @@ function calculateCategory() {
   else if (age <= 18) cat = "U18";
   else cat = "Sénior";
 
-  document.getElementById("adh-categorie").value = cat;
-}
+  // 4. Si la fonction a été appelée sans argument (depuis un événement du DOM), remplit l'input
+  if (!dobString && document.getElementById("adh-categorie")) {
+    document.getElementById("adh-categorie").value = cat;
+  }
 
+  return cat;
+}
 async function onSearchAdherent(query) {
   const listEl = document.getElementById("c1-search-results");
   listEl.innerHTML = "";
