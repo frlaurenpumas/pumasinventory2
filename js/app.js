@@ -128,6 +128,7 @@ function resetAdherentForm() {
 }
 
 // Affiche tous les adhérents triés par nom puis prénom en temps réel (Consultation seule)
+// Affiche tous les adhérents triés par nom puis prénom en temps réel (Consultation seule)
 function loadAllAdherentsC1() {
   db.collection("adherents")
     .orderBy("nom", "asc")
@@ -138,7 +139,7 @@ function loadAllAdherentsC1() {
       tbody.innerHTML = "";
 
       if (snapshot.empty) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center">Aucun adhérent en base.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center">Aucun adhérent en base.</td></tr>';
         return;
       }
 
@@ -156,8 +157,6 @@ function loadAllAdherentsC1() {
           <td>${adh.prenom || ""}</td>
           <td>${adh.categorie || "-"}</td>
           <td>${adh.dateNaissance || "-"}</td>
-          <td>${adh.pointure || "-"}</td>
-          <td>${adh.tailleMainInch || "-"}</td>
           <td><span class="badge">${adh.statut || "Nouveau"}</span></td>
         `;
         tbody.appendChild(tr);
