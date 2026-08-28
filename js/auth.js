@@ -87,22 +87,24 @@ if (loginForm) {
     }
 
     try {
-      // Tentative de connexion via Firebase Auth
+      // Connexion à Firebase
       await firebase.auth().signInWithEmailAndPassword(email, password);
       
-      // En cas de succès, redirection vers la page principale
+      // Redirection vers l'application principale
       window.location.href = 'index.html';
     } catch (error) {
       console.error("Erreur de connexion :", error);
       
       if (messageElement) {
         messageElement.style.color = '#dc2626'; // Rouge
+        
+        // Gestion unifiée de l'erreur d'identifiants
         if (
+          error.code === 'auth/invalid-login-credentials' ||
           error.code === 'auth/user-not-found' || 
-          error.code === 'auth/wrong-password' || 
-          error.code === 'auth/invalid-credential'
+          error.code === 'auth/wrong-password'
         ) {
-          messageElement.textContent = "Identifiants incorrects.";
+          messageElement.textContent = "Email ou mot de passe incorrect.";
         } else {
           messageElement.textContent = "Erreur de connexion : " + error.message;
         }
