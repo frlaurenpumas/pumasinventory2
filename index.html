@@ -24,15 +24,20 @@
 </head>
 <body>
 
-  <header>
-    <h1>🏒 Distribution Matériel Hockey</h1>
-      <nav class="tabs">
-        <button class="tab-btn active" onclick="switchTab('comptoir1', event)">1er Comptoir : Accueil & Mesures</button>
-        <button class="tab-btn" onclick="switchTab('comptoir2', event)">2ème Comptoir : Distribution</button>
-        <button class="tab-btn" onclick="switchTab('admin', event)">Admin / CSV</button>
-        <button onclick="logout()" class="btn btn-secondary">Déconnexion</button>
-      </nav>
-  </header>
+<header>
+  <h1>🏒 Distribution Matériel Hockey</h1>
+  <nav class="tabs">
+    <button class="tab-btn active" onclick="switchTab('comptoir1', event)">1er Comptoir : Accueil & Mesures</button>
+    <button class="tab-btn" onclick="switchTab('comptoir2', event)">2ème Comptoir : Distribution</button>
+    <button class="tab-btn" onclick="switchTab('admin', event)">Admin / CSV</button>
+    
+    <!-- Bouton pour demander la réinitialisation du mot de passe -->
+    <button onclick="resetPasswordOnDemand()" class="btn btn-secondary">Réinitialiser mot de passe</button>
+    
+    <!-- Bouton Déconnexion -->
+    <button onclick="logout()" class="btn btn-danger">Déconnexion</button>
+  </nav>
+</header>
 
   <main>
     
