@@ -1078,7 +1078,7 @@ async function exportLoansCSV() {
       adherentsMap[doc.id] = doc.data();
     });
 
-    const data = loansSnapshot.docs.map(doc => {
+const data = loansSnapshot.docs.map(doc => {
       const d = doc.data();
 
       // Recours à la map d'adhérents si les champs ne sont pas dénormalisés (anciens prêts)
@@ -1086,6 +1086,10 @@ async function exportLoansCSV() {
       const nom = d.adhNom || fallbackAdh.nom || "N/C";
       const prenom = d.adhPrenom || fallbackAdh.prenom || "N/C";
       const categorie = d.adhCategorie || fallbackAdh.categorie || "N/C";
+
+      // Informations du bénévole (avec fallback si ancien prêt sans l'info)
+      const benevoleNom = d.benevoleName || "N/C";
+      const benevoleEmail = d.benevoleEmail || "N/C";
 
       const dateRemise = d.dateRemise && typeof d.dateRemise.toDate === 'function' 
         ? d.dateRemise.toDate().toLocaleDateString("fr-FR") 
@@ -1107,10 +1111,12 @@ async function exportLoansCSV() {
         "Statut": d.statut || "",
         "Date Remise": dateRemise,
         "Date Restitution": dateRestitution,
+        "Bénévole (Nom)": benevoleNom,
+        "Bénévole (Email)": benevoleEmail,
         "ID Adhérent (Technique)": d.adhId || "",
         "ID Équipement (Technique)": d.eqId || ""
       };
-    });
+  });
 
     if (data.length === 0) {
       return alert("Aucun prêt à exporter.");
