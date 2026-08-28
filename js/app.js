@@ -185,22 +185,37 @@ function loadAllAdherentsC1() {
 
 async function saveAndSendToComptoir2(e) {
   e.preventDefault();
+
+  // 1. Récupération des valeurs des mesures
+  const tailleCm = document.getElementById("adh-taille-cm").value.trim();
+  const tourTeteCm = document.getElementById("adh-tete-cm").value.trim();
+  const tailleMainInch = document.getElementById("adh-main-inch").value.trim();
+  const pointure = document.getElementById("adh-pointure").value.trim();
+
+  // 2. BLOCUS : On vérifie que TOUTES les mesures sont renseignées
+  if (!tailleCm || !tourTeteCm || !tailleMainInch || !pointure) {
+    alert("Impossible de transmettre au Comptoir 2 : Toutes les mesures (Taille, Tour de tête, Main, Pointure) sont obligatoires.");
+    return; // Interrompt l'exécution, rien n'est envoyé à la base de données
+  }
+
   const id = document.getElementById("adh-id").value;
-  
+
+  // 3. Construction du payload complet (inchangé)
   const payload = {
     nom: document.getElementById("adh-nom").value.trim(),
     prenom: document.getElementById("adh-prenom").value.trim(),
     dateNaissance: document.getElementById("adh-dob").value,
     categorie: document.getElementById("adh-categorie").value,
     email: document.getElementById("adh-email").value.trim(),
-    tailleCm: Number(document.getElementById("adh-taille-cm").value) || null,
-    tourTeteCm: Number(document.getElementById("adh-tete-cm").value) || null,
-    tailleMainInch: document.getElementById("adh-main-inch").value,
-    pointure: document.getElementById("adh-pointure").value,
+    tailleCm: Number(tailleCm) || null,
+    tourTeteCm: Number(tourTeteCm) || null,
+    tailleMainInch: tailleMainInch,
+    pointure: pointure,
     statut: "En attente de matériel",
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   };
 
+  // 4. Enregistrement Firestore
   if (id) {
     await db.collection("adherents").doc(id).update(payload);
   } else {
