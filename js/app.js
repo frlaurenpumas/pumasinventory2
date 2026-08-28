@@ -375,6 +375,57 @@ function renderStockSummaryBandeau() {
 }
 
 // --- RÈGLES MÉTIER : TAILLE CIBLE STRICTE (Débrayage obligatoire si rupture) ---
+
+// --- TRI INTELLIGENT DES TAILLES DANS LES MENUS DÉROULANTS ---
+function sortSizes(sizeA, sizeB, type) {
+  const strA = String(sizeA || "").trim().toUpperCase();
+  const strB = String(sizeB || "").trim().toUpperCase();
+
+  // 1. Priorité aux catégories / préfixes : YT (Youth) < JR (Junior) < SR (Senior)
+  const getCategoryRank = (s) => {
+    if (s.includes("YT") || s.includes("YTH") || s.includes("YOUTH")) return 1;
+    if (s.includes("JR") || s.includes("JUNIOR")) return 2;
+    if (s.includes("INT") || s.includes("INTERMEDIATE")) return 3;
+    if (s.includes("SR") || s.includes("SENIOR")) return 4;
+    return 5; // Sans catégorie précisée
+  };
+
+  const catRankA = getCategoryRank(strA);
+  const catRankB = getCategoryRank(strB);
+  if (catRankA !== catRankB) return catRankA - catRankB;
+
+  // 2. Extrait les nombres pour les Patins, Gants, Jambières (ex: '9"', '10.5', '14"')
+  const numA = parseFloat(strA.replace(",", ".").replace(/[^0-9.]/g, ""));
+  const numB = parseFloat(strB.replace(",", ".").replace(/[^0-9.]/g, ""));
+
+  if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
+    return numA - numB;
+  }
+
+  // 3. Ordre des tailles textuelles standard
+  const textOrder = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "3XL"];
+  
+  // Nettoie la chaîne pour chercher le code taille (ex: "JR S" -> "S")
+  const findTextRank = (s) => {
+    const tokens = s.split(/[\s-]+/);
+    for (const token of tokens) {
+      const idx = textOrder.indexOf(token);
+      if (idx !== -1) return idx;
+    }
+    return -1;
+  };
+
+  const rankA = findTextRank(strA);
+  const rankB = findTextRank(strB);
+
+  if (rankA !== -1 && rankB !== -1 && rankA !== rankB) {
+    return rankA - rankB;
+  }
+
+  // 4. Fallback : tri alphabétique/numérique standard
+  return strA.localeCompare(strB, undefined, { numeric: true, sensitivity: 'base' });
+}
+
 function filterInventoryByRule(type, items, adh) {
   if (!adh) return items;
 
@@ -561,7 +612,12 @@ function populateSizesFirst(key, type, stockItems) {
     }
   });
 
-  Array.from(uniqueSizeMap.entries()).forEach(([sizeValue, labelText]) => {
+  // Tri des tailles selon les règles YT -> JR -> SR / Numérique / XS -> XL
+  const sortedEntries = Array.from(uniqueSizeMap.entries()).sort(([valA], [valB]) => {
+    return sortSizes(valA, valB, type);
+  });
+
+  sortedEntries.forEach(([sizeValue, labelText]) => {
     const opt = document.createElement("option");
     opt.value = sizeValue;
     opt.textContent = labelText;
