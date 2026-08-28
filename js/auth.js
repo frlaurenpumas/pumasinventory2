@@ -62,9 +62,43 @@ if (forgotPasswordLink) {
   });
 }
 
+
+// Fonction de reset Password à la demande de l'utilisateur
+
+async function resetPasswordOnDemand() {
+  const user = firebase.auth().currentUser;
+
+  if (!user || !user.email) {
+    alert("Aucun utilisateur connecté.");
+    return;
+  }
+
+  const confirmReset = confirm(`Un e-mail de réinitialisation de mot de passe va être envoyé à : ${user.email}.\n\nVoulez-vous continuer ?`);
+
+  if (confirmReset) {
+    try {
+      await firebase.auth().sendPasswordResetEmail(user.email);
+      alert(`Un e-mail a été envoyé à ${user.email}. Cliquez sur le lien reçu dans votre boîte mail pour modifier votre mot de passe.`);
+    } catch (error) {
+      console.error("Erreur réinitialisation mot de passe :", error);
+      alert("Erreur lors de l'envoi de l'e-mail : " + error.message);
+    }
+  }
+}
+
+
+
+
 // Fonction de déconnexion à attacher à un bouton dans ton interface
-function logout() {
-  firebase.auth().signOut().then(() => {
+async function logout() {
+  try {
+    // 1. Déconnexion de la session Firebase
+    await firebase.auth().signOut();
+    
+    // 2. Redirection explicite vers la page de connexion
     window.location.href = "login.html";
-  });
+  } catch (error) {
+    console.error("Erreur lors de la déconnexion :", error);
+    alert("Erreur lors de la déconnexion : " + error.message);
+  }
 }
