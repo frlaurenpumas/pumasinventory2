@@ -29,10 +29,7 @@
   </header>
 
   <main>
-    Voici le code HTML adapté.
-
-La section de Recherche / Création est conservée en haut et centrée. En dessous, l'espace est divisé en deux colonnes fixes : la Fiche Adhérent à gauche et le Tableau de consultation défilant à droite.
-HTML
+    
 
 <!-- COMPTOIR 1 -->
 <section id="comptoir1" class="tab-content active" style="display: flex; flex-direction: column; height: calc(100vh - 80px); overflow: hidden; gap: 15px;">
@@ -49,10 +46,10 @@ HTML
     <ul id="c1-search-results" class="autocomplete-list"></ul>
   </div>
 
-  <!-- CONTENEUR PRINCIPAL BI-COLONNE (Ajustable au reste de la hauteur) -->
+  <!-- CONTENEUR PRINCIPAL BI-COLONNE -->
   <div style="display: flex; gap: 20px; flex: 1; min-height: 0; overflow: hidden;">
 
-    <!-- COLONNE GAUCHE : FICHE ADHÉRENT (Formulaire fixe / défilement interne si petit écran) -->
+    <!-- COLONNE GAUCHE : FICHE ADHÉRENT -->
     <div class="card" style="flex: 1; min-width: 380px; overflow-y: auto; margin: 0; padding: 15px;">
       <h3 style="margin-top: 0;">Fiche Adhérent</h3>
       <form id="form-adherent" onsubmit="saveAndSendToComptoir2(event)">
@@ -129,11 +126,10 @@ HTML
       </form>
     </div>
 
-    <!-- COLONNE DROITE : TABLEAU DE CONSULTATION DÉFILANT -->
+    <!-- COLONNE DROITE : TABLEAU DE CONSULTATION (3 COLONNES) -->
     <div class="card" style="flex: 1.2; display: flex; flex-direction: column; overflow: hidden; margin: 0; padding: 15px;">
       <h3 style="margin-top: 0; flex-shrink: 0;">Liste des adhérents enregistrés</h3>
       
-      <!-- Zone avec défilement autonome -->
       <div style="flex: 1; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px;">
         <table class="data-table" style="width: 100%; border-collapse: collapse;">
           <thead style="position: sticky; top: 0; background-color: #f8fafc; z-index: 1; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
@@ -141,8 +137,6 @@ HTML
               <th>Nom</th>
               <th>Prénom</th>
               <th>Catégorie</th>
-              <th>Date de naissance</th>
-              <th>Statut</th>
             </tr>
           </thead>
           <tbody id="c1-adherents-list-body">
@@ -154,7 +148,6 @@ HTML
 
   </div>
 </section>
-
     <!-- COMPTOIR 2 -->
 <section id="comptoir2" class="tab-content">
   <h2>Comptoir 2 : Distribution & Échanges</h2>
