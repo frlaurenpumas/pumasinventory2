@@ -145,3 +145,28 @@ async function logout() {
     alert("Erreur lors de la déconnexion : " + error.message);
   }
 }
+
+async function inviteVolunteer(email) {
+  if (!currentUserAdmin) {
+    alert("Seuls les administrateurs peuvent inviter des bénévoles.");
+    return;
+  }
+
+  try {
+    // 1. Génération d'un mot de passe temporaire aléatoire
+    const tempPassword = Math.random().toString(36).slice(-10) + "A1!";
+
+    // 2. Création du compte dans Firebase
+    // Note : createUserWithEmailAndPassword connecte automatiquement le nouveau compte
+    // On conserve donc la session admin en utilisant une instance secondaire si nécessaire, 
+    // ou via le SDK Admin / une Cloud Function pour les déploiements plus avancés.
+    
+    // Méthode simplifiée côté client : envoi d'un lien de réinitialisation direct
+    await firebase.auth().sendPasswordResetEmail(email);
+    
+    alert(`Un e-mail d'invitation a été envoyé à ${email} !`);
+  } catch (error) {
+    console.error("Erreur d'invitation :", error);
+    alert("Erreur lors de l'envoi de l'invitation : " + error.message);
+  }
+}
