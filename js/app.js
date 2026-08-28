@@ -102,6 +102,7 @@ function calculateCategory(dobString) {
 
   return cat;
 }
+
 async function onSearchAdherent(query) {
   const listEl = document.getElementById("c1-search-results");
   listEl.innerHTML = "";
@@ -129,6 +130,7 @@ function fillAdherentForm(adh) {
   document.getElementById("adh-dob").value = dob;
 
   document.getElementById("adh-categorie").value = adh.categorie || "";
+  document.getElementById("adh-email").value = adh.email || adh.mail || "";
   document.getElementById("adh-taille-cm").value = adh.tailleCm || "";
   document.getElementById("adh-tete-cm").value = adh.tourTeteCm || "";
   document.getElementById("adh-main-inch").value = adh.tailleMainInch || "";
@@ -144,8 +146,7 @@ function resetAdherentForm() {
   document.getElementById("c1-search-results").innerHTML = "";
 }
 
-// Affiche tous les adhérents triés par nom puis prénom en temps réel (Consultation seule)
-// Affiche tous les adhérents triés par nom puis prénom en temps réel (Consultation seule)
+// Affiche tous les adhérents triés par nom puis prénom en temps réel (Consultation & Sélection)
 function loadAllAdherentsC1() {
   db.collection("adherents")
     .orderBy("nom", "asc")
@@ -156,7 +157,7 @@ function loadAllAdherentsC1() {
       tbody.innerHTML = "";
 
       if (snapshot.empty) {
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center">Aucun adhérent en base.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center">Aucun adhérent en base.</td></tr>';
         return;
       }
 
@@ -169,12 +170,13 @@ function loadAllAdherentsC1() {
 
       list.forEach(adh => {
         const tr = document.createElement("tr");
+        tr.style.cursor = "pointer";
+        tr.onclick = () => fillAdherentForm(adh);
+
         tr.innerHTML = `
           <td><strong>${(adh.nom || "").toUpperCase()}</strong></td>
           <td>${adh.prenom || ""}</td>
           <td>${adh.categorie || "-"}</td>
-          <td>${adh.dateNaissance || "-"}</td>
-          <td><span class="badge">${adh.statut || "Nouveau"}</span></td>
         `;
         tbody.appendChild(tr);
       });
@@ -190,6 +192,7 @@ async function saveAndSendToComptoir2(e) {
     prenom: document.getElementById("adh-prenom").value.trim(),
     dateNaissance: document.getElementById("adh-dob").value,
     categorie: document.getElementById("adh-categorie").value,
+    email: document.getElementById("adh-email").value.trim(),
     tailleCm: Number(document.getElementById("adh-taille-cm").value) || null,
     tourTeteCm: Number(document.getElementById("adh-tete-cm").value) || null,
     tailleMainInch: document.getElementById("adh-main-inch").value,
@@ -408,7 +411,6 @@ function populateSizesSimple(key, type) {
 }
 
 function onGridChange(key) {
-  // Met simplement à jour le compteur d'équipements obligatoires sélectionnés
   updateMandatoryCounter();
 }
 
@@ -622,7 +624,7 @@ async function exportAdherentsCSV() {
       "Prénom": d.prenom || "",
       "Date Naissance": d.dateNaissance || "",
       "Catégorie": d.categorie || "",
-      "Email": d.email || "", // <-- Nouveau champ ajouté ici
+      "Email": d.email || "",
       "Taille (cm)": d.tailleCm || "",
       "Tour de tête (cm)": d.tourTeteCm || "",
       "Taille Main(inch)": d.tailleMainInch || "",
@@ -693,6 +695,7 @@ async function exportInventoryCSV() {
     alert("Impossible d'exporter l'inventaire.");
   }
 }
+
 async function exportLoansCSV() {
   const snapshot = await db.collection("loans").get();
   const data = snapshot.docs.map(doc => {
