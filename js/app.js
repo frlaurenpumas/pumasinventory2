@@ -808,6 +808,43 @@ async function assignAllEquipment(e) {
   }
 }
 
+// --- RESTITUTION ET ÉCHANGE DE MATÉRIEL ---
+async function returnEquipment(loanId, equipmentId) {
+  if (!confirm("Voulez-vous vraiment restituer cet équipement ?")) return;
+
+  const batch = db.batch();
+
+  // 1. Mettre à jour le prêt dans la collection "loans"
+  const loanRef = db.collection("loans").doc(loanId);
+  batch.update(loanRef, {
+    statut: "restitue",
+    dateRestitution: firebase.firestore.FieldValue.serverTimestamp()
+  });
+
+  // 2. Remettre l'équipement en stock dans la collection "equipment"
+  if (equipmentId) {
+    const eqRef = db.collection("equipment").doc(equipmentId);
+    batch.update(eqRef, {
+      statut: "en_stock"
+    });
+  }
+
+  try {
+    await batch.commit();
+
+    // 3. Mettre à jour les vues locales
+    await loadInventory();
+    renderStockSummaryBandeau();
+    renderGridSection(MANDATORY_EQUIPMENTS, "grid-mandatory-body", true);
+    renderGridSection(OPTIONAL_EQUIPMENTS, "grid-optional-body", false);
+    updateMandatoryCounter();
+
+  } catch (error) {
+    console.error("Erreur lors de la restitution de l'équipement :", error);
+    alert("Une erreur est survenue lors de la restitution.");
+  }
+}
+
 async function closeRemiseSession() {
   if (!currentAdherentC2) return;
 
