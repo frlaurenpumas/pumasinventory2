@@ -34,18 +34,19 @@
 
   <div class="card">
     <h2 style="text-align: center; margin-top: 0;">Espace Bénévole</h2>
-    <form id="login-form">
-      <div class="form-group">
-        <label for="email">Email</label>
-        <input type="email" id="email" required placeholder="nom@club.fr">
-      </div>
-      <div class="form-group">
-        <label for="password">Mot de passe</label>
-        <input type="password" id="password" required>
-      </div>
-      <button type="submit">Se connecter</button>
-      <div id="login-error" class="error"></div>
+      <form id="login-form">
+        <!-- Champs Email et Mot de passe -->
+        <input type="email" id="email" placeholder="Email" required />
+        <input type="password" id="password" placeholder="Mot de passe" required />
+        
+        <button type="submit">Se connecter</button>
+        
+        <!-- Bouton / Lien mot de passe oublié -->
+        <p class="auth-options">
+          <a href="#" id="forgot-password-link">Mot de passe oublié ?</a>
+        </p>
     </form>
+    <p id="auth-message" class="message"></p>
   </div>
 
 <!-- Scripts Firebase SDK v9 (Compat) -->
