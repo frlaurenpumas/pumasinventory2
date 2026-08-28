@@ -99,9 +99,49 @@ main { padding: 2rem; max-width: 1200px; margin: 0 auto; }
 }
 .autocomplete-list li:hover { background: #f1f5f9; }
 
+/* --- CONTENEUR TABLEAU AVEC DÉFILEMENT (NOUVEAU) --- */
+.table-container {
+  max-height: 420px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+}
+
+/* Fixe le header du tableau lors du défilement */
+.table-container .data-table th {
+  position: sticky;
+  top: 0;
+  background: #f1f5f9;
+  z-index: 2;
+  box-shadow: 0 1px 0 var(--border);
+}
+
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th, .data-table td { padding: 0.6rem; text-align: left; border-bottom: 1px solid var(--border); }
+.data-table th { font-size: 0.85rem; }
+
+/* Effet visuel au survol et clic sur la liste des adhérents */
+#c1-adherents-list-body tr {
+  cursor: pointer;
+  transition: background-color 0.15s ease-in-out;
+}
+#c1-adherents-list-body tr:hover {
+  background-color: #eff6ff;
+}
+
 /* Comptoir 2 Layout */
 .comptoir2-layout { display: grid; grid-template-columns: 300px 1fr; gap: 1.5rem; }
-.queue-list { list-style: none; padding: 0; margin: 0; }
+
+/* Défilement sur la file d'attente C2 si beaucoup d'adhérents */
+.queue-list { 
+  list-style: none; 
+  padding: 0; 
+  margin: 0; 
+  max-height: 500px; 
+  overflow-y: auto; 
+}
+
 .queue-item {
   padding: 0.8rem;
   border: 1px solid var(--border);
@@ -122,10 +162,6 @@ main { padding: 2rem; max-width: 1200px; margin: 0 auto; }
 .alert { padding: 0.8rem; border-radius: 6px; margin-bottom: 1rem; font-weight: 500; }
 .alert-warning { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
 .alert-danger { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
-
-.data-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
-.data-table th, .data-table td { padding: 0.6rem; text-align: left; border-bottom: 1px solid var(--border); }
-.data-table th { background: #f1f5f9; font-size: 0.85rem; }
 
 .import-export-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
 .box { border: 1px solid var(--border); padding: 1rem; border-radius: 6px; }
