@@ -1022,21 +1022,61 @@ async function exportInventoryCSV() {
 
 async function exportLoansCSV() {
   const snapshot = await db.collection("loans").get();
+  
   const data = snapshot.docs.map(doc => {
     const d = doc.data();
+
+    // Formatage propre des dates
+    const dateRemise = d.dateRemise && typeof d.dateRemise.toDate === 'function' 
+      ? d.dateRemise.toDate().toLocaleDateString("fr-FR") 
+      : (d.dateRemise || "");
+
+    const dateRestitution = d.dateRestitution && typeof d.dateRestitution.toDate === 'function' 
+      ? d.dateRestitution.toDate().toLocaleDateString("fr-FR") 
+      : (d.dateRestitution || "");
+
     return {
       "ID Prêt": doc.id,
-      "ID Adhérent": d.adhId,
-      "ID Équipement": d.eqId,
-      "Type": d.type,
-      "Marque": d.marque,
-      "Modèle": d.modele,
-      "Taille": d.taille,
-      "Statut": d.statut,
-      "Date Remise": d.dateRemise ? new Date(d.dateRemise.toDate()).toISOString() : "",
-      "Date Restitution": d.dateRestitution ? new Date(d.dateRestitution.toDate()).toISOString() : ""
+      "Nom Adhérent": d.adhNom || "N/C",
+      "Prénom Adhérent": d.adhPrenom || "N/C",
+      "Catégorie Adhérent": d.adhCategorie || "N/C",
+      "Type Équipement": d.type || "",
+      "Marque": d.marque || "",
+      "Modèle": d.modele || "",
+      "Taille": d.taille || "",
+      "Statut": d.statut || "",
+      "Date Remise": dateRemise,
+      "Date Restitution": dateRestitution,
+      "ID Adhérent (Technique)": d.adhId || "",
+      "ID Équipement (Technique)": d.eqId || ""
     };
   });
+
+  // --- Transformation des objets JSON en fichier CSV téléchargeable ---
+  if (data.length === 0) {
+    alert("Aucun prêt à exporter.");
+    return;
+  }
+
+  const headers = Object.keys(data[0]);
+  const csvRows = [
+    headers.join(";"), // En-têtes
+    ...data.map(row => 
+      headers.map(header => `"${String(row[header] || '').replace(/"/g, '""')}"`).join(";")
+    )
+  ];
+
+  // Le prefix \uFEFF garantit la bonne ouverture des accents UTF-8 dans Excel
+  const csvString = "\uFEFF" + csvRows.join("\n");
+  const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+  
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `registre_prets_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
 
   downloadCSV(data, "export_registre_prets_horodate.csv");
 }
