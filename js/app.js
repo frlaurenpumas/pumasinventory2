@@ -436,12 +436,9 @@ function filterInventoryByRule(type, items, adh) {
     case "Casque": {
       if (!adhTete) return items;
       const rec = getRecommendedHelmetSize(adhTete);
-
-      // On filtre les casques correspondant EXACTEMENT à cette taille constructeur (par code ou par tailleMax)
       return items.filter(i => {
         const itemTailleStr = String(i.taille || "").toUpperCase().trim();
         const itemTailleMax = Number(i.tailleMax) || 0;
-        
         return itemTailleStr === rec.code || itemTailleMax === rec.max;
       });
     }
@@ -451,13 +448,15 @@ function filterInventoryByRule(type, items, adh) {
     case "Culotte":
     case "Jambières": {
       if (!adhTaille) return items;
-      const targetSize = Math.ceil((adhTaille + 5) / 10) * 10;
+      // Ajout de la marge fixe de +3cm avant arrondi à la dizaine supérieure
+      const targetSize = Math.ceil((adhTaille + 3) / 10) * 10;
       return items.filter(i => Number(i.tailleMax) === targetSize);
     }
 
     case "Crosse": {
       if (!adhTaille) return items;
-      const targetSize = Math.ceil(adhTaille / 10) * 10;
+      // Idem pour la crosse (+3cm de marge d'anticipation)
+      const targetSize = Math.ceil((adhTaille + 3) / 10) * 10;
       return items.filter(i => Number(i.tailleMax) === targetSize);
     }
 
@@ -508,13 +507,14 @@ function getFormattedMeasure(type, adh) {
     case "Culotte":
     case "Jambières": {
       if (!adhTaille) return "N/C";
-      const recMax = Math.ceil((adhTaille + 5) / 10) * 10;
+      // Affichage de la suggestion basée sur +3cm
+      const recMax = Math.ceil((adhTaille + 3) / 10) * 10;
       return `${adhTaille} cm (Rec. Taille MAX : ${recMax})`;
     }
 
     case "Crosse": {
       if (!adhTaille) return "N/C";
-      const recMax = Math.ceil(adhTaille / 10) * 10;
+      const recMax = Math.ceil((adhTaille + 3) / 10) * 10;
       return `${adhTaille} cm (Rec. Taille MAX : ${recMax})`;
     }
 
