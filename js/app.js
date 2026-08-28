@@ -382,34 +382,31 @@ function filterInventoryByRule(type, items, adh) {
   const adhTete = Number(adh.tourTeteCm) || 0;
 
   switch (type) {
+    case "Casque": {
+      if (!adhTete) return items;
+      const rec = getRecommendedHelmetSize(adhTete);
+
+      // On filtre les casques correspondant EXACTEMENT à cette taille constructeur (par code ou par tailleMax)
+      return items.filter(i => {
+        const itemTailleStr = String(i.taille || "").toUpperCase().trim();
+        const itemTailleMax = Number(i.tailleMax) || 0;
+        
+        return itemTailleStr === rec.code || itemTailleMax === rec.max;
+      });
+    }
+
     case "Plastron":
     case "Coudières":
     case "Culotte":
     case "Jambières": {
       if (!adhTaille) return items;
-
-      // 1. Déterminer la taille cible exacte théorique (ex: 140 pour un enfant de 132 cm)
-      // On cherche parmi la liste globale d'équipements la taille minimale recommandée (adhTaille + 5cm)
-      const targetSize = Math.ceil((adhTaille + 5) / 10) * 10; // Arrondi à la dizaine supérieure
-
-      // 2. Filtrer les stocks STRICTEMENT sur cette taille cible
-      return items.filter(i => Number(i.tailleMax) === targetSize);
-    }
-
-    case "Casque": {
-      if (!adhTete) return items;
-
-      // Taille cible idéale (tour de tête + 2cm)
-      const targetSize = Math.ceil((adhTete + 2) / 5) * 5; // Arrondi à la tranche de 5 cm
-
+      const targetSize = Math.ceil((adhTaille + 5) / 10) * 10;
       return items.filter(i => Number(i.tailleMax) === targetSize);
     }
 
     case "Crosse": {
       if (!adhTaille) return items;
-
       const targetSize = Math.ceil(adhTaille / 10) * 10;
-
       return items.filter(i => Number(i.tailleMax) === targetSize);
     }
 
@@ -434,21 +431,50 @@ function filterInventoryByRule(type, items, adh) {
   }
 }
 
+function getRecommendedHelmetSize(tourTeteCm) {
+  const target = Number(tourTeteCm) + 2; // Marge de +2cm
+  if (target <= 53) return { code: "XS", max: 53 };
+  if (target <= 56) return { code: "S", max: 56 };
+  if (target <= 58) return { code: "M", max: 58 };
+  return { code: "L", max: 61 };
+}
+
 function getFormattedMeasure(type, adh) {
   if (!adh) return "N/C";
+
+  const adhTaille = Number(adh.tailleCm) || 0;
+  const adhTete = Number(adh.tourTeteCm) || 0;
+
   switch (type) {
-    case "Casque":
-      return adh.tourTeteCm ? `${adh.tourTeteCm} cm (Rec: ≥ ${Number(adh.tourTeteCm) + 2}cm)` : "N/C";
+    case "Casque": {
+      if (!adhTete) return "N/C";
+      const rec = getRecommendedHelmetSize(adhTete);
+      return `${adhTete} cm (Rec. Taille MAX : ${rec.code} - ${rec.max})`;
+    }
+
+    case "Plastron":
+    case "Coudières":
+    case "Culotte":
+    case "Jambières": {
+      if (!adhTaille) return "N/C";
+      const recMax = Math.ceil((adhTaille + 5) / 10) * 10;
+      return `${adhTaille} cm (Rec. Taille MAX : ${recMax})`;
+    }
+
+    case "Crosse": {
+      if (!adhTaille) return "N/C";
+      const recMax = Math.ceil(adhTaille / 10) * 10;
+      return `${adhTaille} cm (Rec. Taille MAX : ${recMax})`;
+    }
+
     case "Patins":
       return adh.pointure ? `Pointure ${adh.pointure}` : "N/C";
+
     case "Gants":
       return adh.tailleMainInch ? `${adh.tailleMainInch}"` : "N/C";
-    case "Crosse":
-      return adh.tailleCm ? `Taille ${adh.tailleCm} cm` : "N/C";
-    case "Sac":
-      return "N/C";
+
     default:
-      return adh.tailleCm ? `${adh.tailleCm} cm (Rec: ≥ ${Number(adh.tailleCm) + 5}cm)` : "N/C";
+      return adhTaille ? `${adhTaille} cm` : "N/C";
   }
 }
 
