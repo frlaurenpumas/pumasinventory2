@@ -22,63 +22,90 @@
       width: 100%;
       max-width: 360px;
     }
-    .form-group { margin-bottom: 16px; }
-    label { display: block; margin-bottom: 6px; font-weight: bold; font-size: 14px; }
-    input { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
-    button { width: 100%; padding: 10px; background: #2563eb; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; }
-    button:hover { background: #1d4ed8; }
-    .error { color: #dc2626; font-size: 13px; margin-top: 10px; display: none; }
+    .form-group { 
+      margin-bottom: 16px; 
+    }
+    label { 
+      display: block; 
+      margin-bottom: 6px; 
+      font-weight: bold; 
+      font-size: 14px; 
+    }
+    input { 
+      width: 100%; 
+      padding: 8px; 
+      box-sizing: border-box; 
+      border: 1px solid #ccc; 
+      border-radius: 4px; 
+    }
+    button { 
+      width: 100%; 
+      padding: 10px; 
+      background: #2563eb; 
+      color: white; 
+      border: none; 
+      border-radius: 4px; 
+      font-size: 16px; 
+      cursor: pointer; 
+      margin-top: 8px;
+    }
+    button:hover { 
+      background: #1d4ed8; 
+    }
+    .auth-options {
+      margin-top: 14px;
+      text-align: center;
+    }
+    .auth-options a {
+      font-size: 13px;
+      color: #2563eb;
+      text-decoration: none;
+    }
+    .auth-options a:hover {
+      text-decoration: underline;
+    }
+    .message { 
+      font-size: 13px; 
+      margin-top: 14px; 
+      text-align: center;
+      word-break: break-word;
+    }
   </style>
-    <!-- Scripts Firebase SDK v9 (Compat) -->
-      <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-      <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-      
-      <!-- Fichier de config Firebase partagé -->
-      <script src="js/firebase-config.js"></script>
-      <script src="js/auth.js" defer></script>
- 
+
+  <!-- Scripts Firebase SDK v9 (Compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  
+  <!-- Fichier de config Firebase partagé -->
+  <script src="js/firebase-config.js"></script>
+  <script src="js/auth.js" defer></script>
 </head>
 <body>
 
   <div class="card">
     <h2 style="text-align: center; margin-top: 0;">Espace Bénévole</h2>
-      <form id="login-form">
-        <!-- Champs Email et Mot de passe -->
-        <input type="email" id="email" placeholder="Email" required />
-        <input type="password" id="password" placeholder="Mot de passe" required />
-        
-        <button type="submit">Se connecter</button>
-        
-        <!-- Bouton / Lien mot de passe oublié -->
-        <p class="auth-options">
-          <a href="#" id="forgot-password-link">Mot de passe oublié ?</a>
-        </p>
+    
+    <form id="login-form">
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" placeholder="votre.email@exemple.com" required />
+      </div>
+      
+      <div class="form-group">
+        <label for="password">Mot de passe</label>
+        <input type="password" id="password" placeholder="••••••••" required />
+      </div>
+      
+      <button type="submit">Se connecter</button>
+      
+      <p class="auth-options">
+        <a href="#" id="forgot-password-link">Mot de passe oublié ?</a>
+      </p>
     </form>
+
+    <!-- Zone d'affichage des messages d'erreur / confirmation -->
     <p id="auth-message" class="message"></p>
   </div>
 
-
-  <script>
-    const loginForm = document.getElementById("login-form");
-    const errorEl = document.getElementById("login-error");
-
-    loginForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      errorEl.style.display = "none";
-
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-
-      try {
-        await firebase.auth().signInWithEmailAndPassword(email, password);
-        // Redirection vers l'application principale une fois connecté
-        window.location.href = "index.html";
-      } catch (err) {
-        console.error("Erreur de connexion :", err);
-        errorEl.textContent = "Identifiants incorrects ou accès refusé.";
-        errorEl.style.display = "block";
-      }
-    });
-  </script>
 </body>
 </html>
