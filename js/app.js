@@ -432,7 +432,7 @@ function filterInventoryByRule(type, items, adh) {
 }
 
 function getRecommendedHelmetSize(tourTeteCm) {
-  const target = Number(tourTeteCm) + 2; // Marge de +2cm
+  const target = Number(tourTeteCm) + 1; // Marge de +1cm
   if (target <= 53) return { code: "XS", max: 53 };
   if (target <= 56) return { code: "S", max: 56 };
   if (target <= 58) return { code: "M", max: 58 };
