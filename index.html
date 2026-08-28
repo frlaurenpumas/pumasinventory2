@@ -10,6 +10,7 @@
   <!-- Firebase SDK (Compat version pour simplicité d'intégration script direct) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   
   <!-- PapaParse CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -25,6 +26,7 @@
         <button class="tab-btn active" onclick="switchTab('comptoir1', event)">1er Comptoir : Accueil & Mesures</button>
         <button class="tab-btn" onclick="switchTab('comptoir2', event)">2ème Comptoir : Distribution</button>
         <button class="tab-btn" onclick="switchTab('admin', event)">Admin / CSV</button>
+        <button onclick="logout()" class="btn btn-secondary">Déconnexion</button>
       </nav>
   </header>
 
@@ -253,25 +255,26 @@
     <!-- ADMIN / CSV -->
     <section id="admin" class="tab-content">
       <h2>Administration & Fichiers CSV</h2>
-
-      <div class="card">
-        <h3>Importation des données</h3>
-        <div class="import-export-grid">
-          <div class="box">
-            <h4>1. Importer les Adhérents</h4>
-            <p><small>Format: Nom;Prénom;Date Naissance;Catégorie;Email;Taille (cm);Tour de tête (cm);Taille Main(inch);Pointure</small></p>
-            <input type="file" id="csv-adh-file" accept=".csv">
-            <button class="btn btn-secondary mt-1" onclick="importAdherentsCSV()">Importer le fichier des adhérents</button>
-          </div>
-
-          <div class="box">
-            <h4>2. Importer l'inventaire matériel</h4>
-            <p><small>Format: Type équipement;Marque;Modèle;Taille;Taille enfant</small></p>
-            <input type="file" id="csv-eq-file" accept=".csv">
-            <button class="btn btn-secondary mt-1" onclick="importInventoryCSV()">Importer le fichier matériel</button>
+      
+        <!-- Ajout de la classe "admin-only" et du masquage par défaut -->
+        <div class="card admin-only" style="display: none;">
+          <h3>Importation des données</h3>
+          <div class="import-export-grid">
+            <div class="box">
+              <h4>1. Importer les Adhérents</h4>
+              <p><small>Format: Nom;Prénom;Date Naissance;Catégorie;Email;Taille (cm);Tour de tête (cm);Taille Main(inch);Pointure</small></p>
+              <input type="file" id="csv-adh-file" accept=".csv">
+              <button class="btn btn-secondary mt-1" onclick="importAdherentsCSV()">Importer le fichier des adhérents</button>
+            </div>
+        
+            <div class="box">
+              <h4>2. Importer l'inventaire matériel</h4>
+              <p><small>Format: Type équipement;Marque;Modèle;Taille;Taille enfant</small></p>
+              <input type="file" id="csv-eq-file" accept=".csv">
+              <button class="btn btn-secondary mt-1" onclick="importInventoryCSV()">Importer le fichier matériel</button>
+            </div>
           </div>
         </div>
-      </div>
 
       <div class="card">
         <h3>Exportation des données</h3>
