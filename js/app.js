@@ -765,24 +765,33 @@ async function assignAllEquipment(e) {
         const eqRef = db.collection("equipment").doc(itemToAssign.id);
         batch.update(eqRef, { statut: "attribue" });
 
-        const loanRef = db.collection("loans").doc();
-        batch.set(loanRef, {
-        adhId: currentAdherentC2.id,
-        // --- Ajout des infos lisibles de l'adhérent ---
-        adhNom: currentAdherentC2.nom || "",
-        adhPrenom: currentAdherentC2.prenom || "",
-        adhCategorie: currentAdherentC2.categorie || "",
-        
-        // --- Équipement déjà lisible ---
-        eqId: itemToAssign.id,
-        type: itemToAssign.type,
-        marque: itemToAssign.marque || "",
-        modele: itemToAssign.modele || "",
-        taille: itemToAssign.taille || "",
-        statut: "attribue",
-        dateRemise: firebase.firestore.FieldValue.serverTimestamp(),
-        dateRestitution: null
-      });
+        // Récupération du bénévole connecté
+        const user = firebase.auth().currentUser;
+        const benevoleEmail = user ? user.email : "Inconnu";
+        const benevoleName = user ? (user.displayName || user.email) : "Inconnu";
+
+        const loanRef = db.collection("loans").doc(); 
+        batch.set(loanRef, { 
+          adhId: currentAdherentC2.id, 
+          // --- Ajout des infos lisibles de l'adhérent --- 
+          adhNom: currentAdherentC2.nom || "", 
+          adhPrenom: currentAdherentC2.prenom || "", 
+          adhCategorie: currentAdherentC2.categorie || "", 
+          
+          // --- Traçabilité Bénévole / Opérateur ---
+          benevoleEmail: benevoleEmail,
+          benevoleName: benevoleName,
+
+          // --- Équipement déjà lisible --- 
+          eqId: itemToAssign.id, 
+          type: itemToAssign.type, 
+          marque: itemToAssign.marque || "", 
+          modele: itemToAssign.modele || "", 
+          taille: itemToAssign.taille || "", 
+          statut: "attribue", 
+          dateRemise: firebase.firestore.FieldValue.serverTimestamp(), 
+          dateRestitution: null 
+        });
 
         itemsAssignedCount++;
       }
