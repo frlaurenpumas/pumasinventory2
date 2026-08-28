@@ -67,6 +67,50 @@ if (forgotPasswordLink) {
   });
 }
 
+// Gestion de la soumission du formulaire de connexion
+const loginForm = document.getElementById('login-form');
+
+if (loginForm) {
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault(); // Empêche le rechargement de la page
+
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const messageElement = document.getElementById('auth-message');
+
+    const email = emailInput ? emailInput.value.trim() : '';
+    const password = passwordInput ? passwordInput.value : '';
+
+    if (messageElement) {
+      messageElement.textContent = '';
+      messageElement.style.color = 'inherit';
+    }
+
+    try {
+      // Tentative de connexion via Firebase Auth
+      await firebase.auth().signInWithEmailAndPassword(email, password);
+      
+      // En cas de succès, redirection vers la page principale
+      window.location.href = 'index.html';
+    } catch (error) {
+      console.error("Erreur de connexion :", error);
+      
+      if (messageElement) {
+        messageElement.style.color = '#dc2626'; // Rouge
+        if (
+          error.code === 'auth/user-not-found' || 
+          error.code === 'auth/wrong-password' || 
+          error.code === 'auth/invalid-credential'
+        ) {
+          messageElement.textContent = "Identifiants incorrects.";
+        } else {
+          messageElement.textContent = "Erreur de connexion : " + error.message;
+        }
+      }
+    }
+  });
+}
+
 // Fonction de reset Password à la demande
 async function resetPasswordOnDemand() {
   const user = firebase.auth().currentUser;
