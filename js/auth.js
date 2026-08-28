@@ -1,27 +1,31 @@
-// Variable globale pour connaître le rôle utilisateur dans ton app
+// Variable globale pour connaître le rôle utilisateur
 let currentUserAdmin = false;
 
 firebase.auth().onAuthStateChanged(async (user) => {
   if (user) {
-    // 1. Récupération des Custom Claims pour vérifier le rôle Admin
-    const tokenResult = await user.getIdTokenResult();
-    currentUserAdmin = !!tokenResult.claims.admin;
+    try {
+      // 1. Récupération des Custom Claims pour vérifier le rôle Admin
+      const tokenResult = await user.getIdTokenResult();
+      currentUserAdmin = !!tokenResult.claims.admin;
 
-    // 2. Gestion dynamique de l'affichage des fonctions Admin (Imports)
-    const adminImportElements = document.querySelectorAll(".admin-only");
-    adminImportElements.forEach(el => {
-      el.style.display = currentUserAdmin ? "block" : "none";
-    });
+      // 2. Gestion dynamique de l'affichage des fonctions Admin (Seulement cosmétique)
+      const adminImportElements = document.querySelectorAll(".admin-only");
+      adminImportElements.forEach(el => {
+        el.style.display = currentUserAdmin ? "block" : "none";
+      });
 
-    console.log(`Connecté en tant que : ${user.email} (Admin: ${currentUserAdmin})`);
+      console.log(`Connecté en tant que : ${user.email} (Admin: ${currentUserAdmin})`);
 
-    // 3. Lancer l'écouteur du comptoir 2 si la fonction existe
-    if (typeof listenToQueueC2 === "function") {
-      listenToQueueC2();
+      // 3. Lancer l'écouteur du comptoir 2 si la fonction existe
+      if (typeof listenToQueueC2 === "function") {
+        listenToQueueC2();
+      }
+    } catch (error) {
+      console.error("Erreur lors de la récupération des jetons :", error);
     }
   } else {
-    // Si l'utilisateur n'est pas connecté et n'est pas déjà sur la page de login -> Redirection
-    if (!window.location.pathname.endsWith("login.html")) {
+    // Redirection si non connecté
+    if (!window.location.pathname.includes("login.html")) {
       window.location.href = "login.html";
     }
   }
@@ -34,37 +38,36 @@ if (forgotPasswordLink) {
   forgotPasswordLink.addEventListener('click', async (e) => {
     e.preventDefault();
     
-    const emailInput = document.getElementById('email').value.trim();
+    const emailInput = document.getElementById('email')?.value.trim();
     const messageElement = document.getElementById('auth-message');
 
     if (!emailInput) {
-      messageElement.textContent = "Veuillez d'abord saisir votre adresse email ci-dessus.";
-      messageElement.style.color = "orange";
+      if (messageElement) {
+        messageElement.textContent = "Veuillez d'abord saisir votre adresse email ci-dessus.";
+        messageElement.style.color = "orange";
+      }
       return;
     }
 
     try {
-      // Envoi de l'email de réinitialisation par Firebase
       await firebase.auth().sendPasswordResetEmail(emailInput);
       
-      messageElement.textContent = "Un e-mail de réinitialisation a été envoyé ! Vérifiez vos spams.";
-      messageElement.style.color = "green";
+      if (messageElement) {
+        // Message générique pour éviter l'énumération de comptes
+        messageElement.textContent = "Si cet e-mail correspond à un compte, un lien de réinitialisation vous a été envoyé. Vérifiez vos spams.";
+        messageElement.style.color = "green";
+      }
     } catch (error) {
       console.error("Erreur réinitialisation :", error);
-      
-      if (error.code === 'auth/user-not-found') {
-        messageElement.textContent = "Aucun compte ne correspond à cette adresse email.";
-      } else {
-        messageElement.textContent = "Erreur lors de l'envoi de l'e-mail : " + error.message;
+      if (messageElement) {
+        messageElement.textContent = "Erreur lors de la demande. Veuillez réessayer.";
+        messageElement.style.color = "red";
       }
-      messageElement.style.color = "red";
     }
   });
 }
 
-
-// Fonction de reset Password à la demande de l'utilisateur
-
+// Fonction de reset Password à la demande
 async function resetPasswordOnDemand() {
   const user = firebase.auth().currentUser;
 
@@ -73,12 +76,12 @@ async function resetPasswordOnDemand() {
     return;
   }
 
-  const confirmReset = confirm(`Un e-mail de réinitialisation de mot de passe va être envoyé à : ${user.email}.\n\nVoulez-vous continuer ?`);
+  const confirmReset = confirm(`Un e-mail de réinitialisation va être envoyé à : ${user.email}.\n\nVoulez-vous continuer ?`);
 
   if (confirmReset) {
     try {
       await firebase.auth().sendPasswordResetEmail(user.email);
-      alert(`Un e-mail a été envoyé à ${user.email}. Cliquez sur le lien reçu dans votre boîte mail pour modifier votre mot de passe.`);
+      alert(`Un e-mail a été envoyé à ${user.email}. Cliquez sur le lien reçu pour modifier votre mot de passe.`);
     } catch (error) {
       console.error("Erreur réinitialisation mot de passe :", error);
       alert("Erreur lors de l'envoi de l'e-mail : " + error.message);
@@ -86,16 +89,10 @@ async function resetPasswordOnDemand() {
   }
 }
 
-
-
-
-// Fonction de déconnexion à attacher à un bouton dans ton interface
+// Fonction de déconnexion
 async function logout() {
   try {
-    // 1. Déconnexion de la session Firebase
     await firebase.auth().signOut();
-    
-    // 2. Redirection explicite vers la page de connexion
     window.location.href = "login.html";
   } catch (error) {
     console.error("Erreur lors de la déconnexion :", error);
