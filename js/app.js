@@ -374,59 +374,64 @@ function renderStockSummaryBandeau() {
   });
 }
 
-// --- RÈGLES MÉTIER DU SUFFISANCE DE TAILLE ---
+// --- RÈGLES MÉTIER : TAILLE CIBLE STRICTE (Débrayage obligatoire si rupture) ---
 function filterInventoryByRule(type, items, adh) {
   if (!adh) return items;
 
   const adhTaille = Number(adh.tailleCm) || 0;
   const adhTete = Number(adh.tourTeteCm) || 0;
 
-  return items.filter(item => {
-    switch (type) {
-      case "Plastron":
-      case "Coudières":
-      case "Culotte":
-      case "Jambières": {
-        if (!adhTaille) return true;
-        const itemTailleMax = Number(item.tailleMax);
-        // Doit couvrir la taille de l'adhérent (+5cm), MAIS ne pas dépasser la tranche de taille supérieure
-        // On cherche la taille minimale adaptée : itemTailleMax >= adhTaille + 5
-        // Pour éviter d'afficher le 150/160 quand le 140 convient, on peut restreindre à l'intervalle le plus proche (+20cm max)
-        return itemTailleMax ? (itemTailleMax >= (adhTaille + 5) && itemTailleMax <= (adhTaille + 15)) : true;
-      }
+  switch (type) {
+    case "Plastron":
+    case "Coudières":
+    case "Culotte":
+    case "Jambières": {
+      if (!adhTaille) return items;
 
-      case "Casque": {
-        if (!adhTete) return true;
-        const itemTeteMax = Number(item.tailleMax);
-        return itemTeteMax ? (itemTeteMax >= (adhTete + 2) && itemTeteMax <= (adhTete + 6)) : true;
-      }
+      // 1. Déterminer la taille cible exacte théorique (ex: 140 pour un enfant de 132 cm)
+      // On cherche parmi la liste globale d'équipements la taille minimale recommandée (adhTaille + 5cm)
+      const targetSize = Math.ceil((adhTaille + 5) / 10) * 10; // Arrondi à la dizaine supérieure
 
-      case "Gants": {
-        if (!adh.tailleMainInch) return true;
-        if (item.tailleMainInch) {
-          return String(item.tailleMainInch).trim() === String(adh.tailleMainInch).trim();
-        }
-        return String(item.taille || "").includes(String(adh.tailleMainInch));
-      }
-
-      case "Patins": {
-        if (!adh.pointure) return true;
-        if (item.pointure) {
-          return String(item.pointure).trim() === String(adh.pointure).trim();
-        }
-        return String(item.taille || "").trim() === String(adh.pointure).trim();
-      }
-
-      case "Crosse": {
-        if (!adhTaille) return true;
-        const itemTailleMax = Number(item.tailleMax);
-        return itemTailleMax ? (itemTailleMax >= adhTaille && itemTailleMax <= (adhTaille + 10)) : true;
-      }
-
-      default:
-        return true;
+      // 2. Filtrer les stocks STRICTEMENT sur cette taille cible
+      return items.filter(i => Number(i.tailleMax) === targetSize);
     }
-  });
+
+    case "Casque": {
+      if (!adhTete) return items;
+
+      // Taille cible idéale (tour de tête + 2cm)
+      const targetSize = Math.ceil((adhTete + 2) / 5) * 5; // Arrondi à la tranche de 5 cm
+
+      return items.filter(i => Number(i.tailleMax) === targetSize);
+    }
+
+    case "Crosse": {
+      if (!adhTaille) return items;
+
+      const targetSize = Math.ceil(adhTaille / 10) * 10;
+
+      return items.filter(i => Number(i.tailleMax) === targetSize);
+    }
+
+    case "Gants": {
+      if (!adh.tailleMainInch) return items;
+      return items.filter(item => {
+        if (item.tailleMainInch) return String(item.tailleMainInch).trim() === String(adh.tailleMainInch).trim();
+        return String(item.taille || "").includes(String(adh.tailleMainInch));
+      });
+    }
+
+    case "Patins": {
+      if (!adh.pointure) return items;
+      return items.filter(item => {
+        if (item.pointure) return String(item.pointure).trim() === String(adh.pointure).trim();
+        return String(item.taille || "").trim() === String(adh.pointure).trim();
+      });
+    }
+
+    default:
+      return items;
+  }
 }
 
 function getFormattedMeasure(type, adh) {
