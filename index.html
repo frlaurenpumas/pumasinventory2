@@ -29,114 +29,129 @@
   </header>
 
   <main>
-    <!-- COMPTOIR 1 -->
-<section id="comptoir1" class="tab-content active">
-  <h2>Comptoir 1 : Accueil, Mesures & Mise à jour</h2>
+    Voici le code HTML adapté.
+
+La section de Recherche / Création est conservée en haut et centrée. En dessous, l'espace est divisé en deux colonnes fixes : la Fiche Adhérent à gauche et le Tableau de consultation défilant à droite.
+HTML
+
+<!-- COMPTOIR 1 -->
+<section id="comptoir1" class="tab-content active" style="display: flex; flex-direction: column; height: calc(100vh - 80px); overflow: hidden; gap: 15px;">
   
-  <!-- RECHERCHE / CRÉATION -->
-  <div class="card">
-    <h3>Recherche / Création</h3>
-    <div class="search-box">
-      <input type="text" id="c1-search" placeholder="Tapez les premières lettres du Nom ou Prénom..." autocomplete="off" oninput="onSearchAdherent(this.value)">
+  <h2 style="margin: 0; flex-shrink: 0;">Comptoir 1 : Accueil, Mesures & Mise à jour</h2>
+  
+  <!-- RECHERCHE / CRÉATION (Haut & Centré) -->
+  <div class="card" style="max-width: 700px; width: 100%; margin: 0 auto; flex-shrink: 0; padding: 15px;">
+    <h3 style="margin-top: 0; text-align: center;">Recherche / Création</h3>
+    <div class="search-box" style="display: flex; gap: 10px; justify-content: center;">
+      <input type="text" id="c1-search" placeholder="Tapez les premières lettres du Nom ou Prénom..." autocomplete="off" oninput="onSearchAdherent(this.value)" style="flex: 1;">
       <button type="button" class="btn btn-secondary" onclick="resetAdherentForm()">+ Nouvel Adhérent</button>
     </div>
     <ul id="c1-search-results" class="autocomplete-list"></ul>
   </div>
 
-  <!-- FICHE ADHÉRENT -->
-  <div class="card">
-    <h3>Fiche Adhérent</h3>
-    <form id="form-adherent" onsubmit="saveAndSendToComptoir2(event)">
-      <input type="hidden" id="adh-id">
+  <!-- CONTENEUR PRINCIPAL BI-COLONNE (Ajustable au reste de la hauteur) -->
+  <div style="display: flex; gap: 20px; flex: 1; min-height: 0; overflow: hidden;">
+
+    <!-- COLONNE GAUCHE : FICHE ADHÉRENT (Formulaire fixe / défilement interne si petit écran) -->
+    <div class="card" style="flex: 1; min-width: 380px; overflow-y: auto; margin: 0; padding: 15px;">
+      <h3 style="margin-top: 0;">Fiche Adhérent</h3>
+      <form id="form-adherent" onsubmit="saveAndSendToComptoir2(event)">
+        <input type="hidden" id="adh-id">
+        
+        <!-- 1ÈRE SECTION : IDENTIFICATION -->
+        <fieldset style="border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+          <legend style="font-weight: bold; padding: 0 8px; color: #334155;">1. Identification</legend>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="adh-nom">Nom *</label>
+              <input type="text" id="adh-nom" required style="text-transform: uppercase;">
+            </div>
+            
+            <div class="form-group">
+              <label for="adh-prenom">Prénom *</label>
+              <input type="text" id="adh-prenom" required>
+            </div>
+            
+            <div class="form-group">
+              <label for="adh-dob">Date de Naissance *</label>
+              <input type="date" id="adh-dob" required onchange="calculateCategory()">
+            </div>
+            
+            <div class="form-group">
+              <label for="adh-categorie">Catégorie (calculée)</label>
+              <input type="text" id="adh-categorie" readonly style="background-color: #f1f5f9; cursor: not-allowed;" placeholder="Calcul automatique...">
+            </div>
+            
+            <div class="form-group" style="grid-column: span 2;">
+              <label for="adh-email">Adresse mail de contact *</label>
+              <input type="email" id="adh-email" required placeholder="ex: exemple@domaine.com">
+            </div>
+          </div>
+        </fieldset>
+
+        <!-- 2ÈMEME SECTION : MESURES -->
+        <fieldset style="border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+          <legend style="font-weight: bold; padding: 0 8px; color: #334155;">2. Mesures</legend>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="adh-taille-cm">Taille (cm)</label>
+              <input type="number" id="adh-taille-cm" min="50" max="250" placeholder="ex: 175">
+            </div>
+
+            <div class="form-group">
+              <label for="adh-tete-cm">Tour de tête (cm)</label>
+              <input type="number" id="adh-tete-cm" min="40" max="70" placeholder="ex: 56">
+            </div>
+
+            <div class="form-group">
+              <label for="adh-main-inch">Taille Main (inch)</label>
+              <select id="adh-main-inch">
+                <option value="">-- Sélectionner --</option>
+                <option value="8">8"</option>
+                <option value="9">9"</option>
+                <option value="10">10"</option>
+                <option value="11">11"</option>
+                <option value="12">12"</option>
+                <option value="13">13"</option>
+                <option value="14">14"</option>
+                <option value="15">15"</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="adh-pointure">Pointure</label>
+              <input type="number" id="adh-pointure" min="20" max="52" placeholder="ex: 42">
+            </div>
+          </div>
+        </fieldset>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Valider et envoyer au Comptoir 2</button>
+      </form>
+    </div>
+
+    <!-- COLONNE DROITE : TABLEAU DE CONSULTATION DÉFILANT -->
+    <div class="card" style="flex: 1.2; display: flex; flex-direction: column; overflow: hidden; margin: 0; padding: 15px;">
+      <h3 style="margin-top: 0; flex-shrink: 0;">Liste des adhérents enregistrés</h3>
       
-      <!-- 1ÈRE SECTION : IDENTIFICATION -->
-      <fieldset style="border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-        <legend style="font-weight: bold; padding: 0 8px; color: #334155;">1. Identification</legend>
-        <div class="form-grid">
-          <div class="form-group">
-            <label for="adh-nom">Nom *</label>
-            <input type="text" id="adh-nom" required style="text-transform: uppercase;">
-          </div>
-          
-          <div class="form-group">
-            <label for="adh-prenom">Prénom *</label>
-            <input type="text" id="adh-prenom" required>
-          </div>
-          
-          <div class="form-group">
-            <label for="adh-dob">Date de Naissance *</label>
-            <input type="date" id="adh-dob" required onchange="calculateCategory()">
-          </div>
-          
-          <div class="form-group">
-            <label for="adh-categorie">Catégorie (calculée)</label>
-            <input type="text" id="adh-categorie" readonly style="background-color: #f1f5f9; cursor: not-allowed;" placeholder="Calcul automatique...">
-          </div>
-          
-          <div class="form-group" style="grid-column: span 2;">
-            <label for="adh-email">Adresse mail de contact *</label>
-            <input type="email" id="adh-email" required placeholder="ex: exemple@domaine.com">
-          </div>
-        </div>
-      </fieldset>
+      <!-- Zone avec défilement autonome -->
+      <div style="flex: 1; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px;">
+        <table class="data-table" style="width: 100%; border-collapse: collapse;">
+          <thead style="position: sticky; top: 0; background-color: #f8fafc; z-index: 1; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+            <tr>
+              <th>Nom</th>
+              <th>Prénom</th>
+              <th>Catégorie</th>
+              <th>Date de naissance</th>
+              <th>Statut</th>
+            </tr>
+          </thead>
+          <tbody id="c1-adherents-list-body">
+            <!-- Rempli dynamiquement via JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
 
-      <!-- 2ÈMEME SECTION : MESURES -->
-      <fieldset style="border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-        <legend style="font-weight: bold; padding: 0 8px; color: #334155;">2. Mesures</legend>
-        <div class="form-grid">
-          <div class="form-group">
-            <label for="adh-taille-cm">Taille (cm)</label>
-            <input type="number" id="adh-taille-cm" min="50" max="250" placeholder="ex: 175">
-          </div>
-
-          <div class="form-group">
-            <label for="adh-tete-cm">Tour de tête (cm)</label>
-            <input type="number" id="adh-tete-cm" min="40" max="70" placeholder="ex: 56">
-          </div>
-
-          <div class="form-group">
-            <label for="adh-main-inch">Taille Main (inch)</label>
-            <select id="adh-main-inch">
-              <option value="">-- Sélectionner --</option>
-              <option value="8">8"</option>
-              <option value="9">9"</option>
-              <option value="10">10"</option>
-              <option value="11">11"</option>
-              <option value="12">12"</option>
-              <option value="13">13"</option>
-              <option value="14">14"</option>
-              <option value="15">15"</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="adh-pointure">Pointure</label>
-            <input type="number" id="adh-pointure" min="20" max="52" placeholder="ex: 42">
-          </div>
-        </div>
-      </fieldset>
-
-      <button type="submit" class="btn btn-primary mt-2">Valider et envoyer au Comptoir 2</button>
-    </form>
-  </div>
-
-  <!-- TABLEAU CONSULTATION ADHÉRENTS (COMPTOIR 1) -->
-  <div class="card mt-3">
-    <h3>Liste des adhérents enregistrés</h3>
-    <table class="data-table" style="width: 100%;">
-      <thead>
-        <tr>
-          <th>Nom</th>
-          <th>Prénom</th>
-          <th>Catégorie</th>
-          <th>Date de naissance</th>
-          <th>Statut</th>
-        </tr>
-      </thead>
-      <tbody id="c1-adherents-list-body">
-        <!-- Rempli dynamiquement via JS -->
-      </tbody>
-    </table>
   </div>
 </section>
 
