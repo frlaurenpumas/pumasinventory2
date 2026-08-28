@@ -46,10 +46,10 @@
     <ul id="c1-search-results" class="autocomplete-list"></ul>
   </div>
 
-  <!-- CONTENEUR PRINCIPAL BI-COLONNE -->
+  <!-- CONTENEUR PRINCIPAL BI-COLONNE (Côte à côte) -->
   <div style="display: flex; gap: 20px; align-items: flex-start;">
 
-    <!-- COLONNE GAUCHE : FICHE ADHÉRENT -->
+    <!-- GAUCHE : ZONE DE TRAVAIL / FICHE ADHÉRENT -->
     <div class="card" style="flex: 1; min-width: 380px; margin: 0; padding: 15px;">
       <h3 style="margin-top: 0;">Fiche Adhérent</h3>
       <form id="form-adherent" onsubmit="saveAndSendToComptoir2(event)">
@@ -94,12 +94,12 @@
               <label for="adh-taille-cm">Taille (cm) *</label>
               <input type="number" id="adh-taille-cm" min="50" max="250" placeholder="ex: 175" required>
             </div>
-        
+
             <div class="form-group">
               <label for="adh-tete-cm">Tour de tête (cm) *</label>
               <input type="number" id="adh-tete-cm" min="40" max="70" placeholder="ex: 56" required>
             </div>
-        
+
             <div class="form-group">
               <label for="adh-main-inch">Taille Main (inch) *</label>
               <select id="adh-main-inch" required>
@@ -114,7 +114,7 @@
                 <option value="15">15"</option>
               </select>
             </div>
-        
+
             <div class="form-group">
               <label for="adh-pointure">Pointure *</label>
               <input type="number" id="adh-pointure" min="20" max="52" placeholder="ex: 42" required>
@@ -122,13 +122,15 @@
           </div>
         </fieldset>
 
-        
-    <!-- COLONNE DROITE : TABLEAU DE CONSULTATION -->
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Valider et envoyer au Comptoir 2</button>
+      </form>
+    </div>
+
+    <!-- DROITE : LISTE DES ADHÉRENTS AVEC TABLEAU DÉROULANT -->
     <div class="card" style="flex: 1.2; margin: 0; padding: 15px;">
       <h3 style="margin-top: 0;">Liste des adhérents enregistrés</h3>
       
-      <!-- CONTENEUR AVEC DEFILEMENT HAUTEUR FIXE (500px) -->
-      <div class="table-container" style="max-height: 500px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px;">
+      <div class="table-container" style="max-height: 550px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px;">
         <table class="data-table" style="width: 100%;">
           <thead>
             <tr>
