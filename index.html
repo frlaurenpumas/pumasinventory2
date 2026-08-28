@@ -150,98 +150,104 @@
 </section>
 
     
-    <!-- COMPTOIR 2 -->
-<section id="comptoir2" class="tab-content">
-  <h2>Comptoir 2 : Distribution & Échanges</h2>
-
-  <div class="comptoir2-layout">
-    <!-- File d'attente à gauche (NON TOUCHÉE) -->
-    <aside class="queue-panel card">
-      <h3>File d'attente (Temps réel)</h3>
-      <ul id="c2-queue" class="queue-list"></ul>
-    </aside>
-
-    <!-- Zone de travail à droite -->
-    <div class="work-panel card" id="c2-workarea" style="display:none;">
-      <div class="adherent-header">
-        <h3 id="c2-adh-fullname"></h3>
-        <span class="badge" id="c2-adh-cat"></span>
-      </div>
-
-      <!-- Alertes Doublons & Manquants -->
-      <div id="c2-alerts"></div>
-
-      <!-- Formulaire attribution -->
-      <form id="form-attribution" onsubmit="assignAllEquipment(event)">
-        
-        <!-- BLOC 1 : ÉQUIPEMENTS OBLIGATOIRES -->
-        <div class="card" style="margin-top: 15px; border: 1px solid #ddd; padding: 15px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <h4 style="margin: 0;">Équipements Obligatoires</h4>
-            <span id="c2-mandatory-counter" class="badge" style="font-size: 1.05em; padding: 6px 12px; background-color: #ff9800; color: #fff; border-radius: 4px;">
-              Complet : 0 / 7
-            </span>
+  <!-- COMPTOIR 2 -->
+    <section id="comptoir2" class="tab-content">
+      <h2>Comptoir 2 : Distribution & Échanges</h2>
+    
+      <div class="comptoir2-layout">
+        <!-- File d'attente à gauche (NON TOUCHÉE) -->
+        <aside class="queue-panel card">
+          <h3>File d'attente (Temps réel)</h3>
+          <ul id="c2-queue" class="queue-list"></ul>
+        </aside>
+    
+        <!-- Zone de travail à droite -->
+        <div class="work-panel card" id="c2-workarea" style="display:none;">
+          <div class="adherent-header">
+            <h3 id="c2-adh-fullname"></h3>
+            <span class="badge" id="c2-adh-cat"></span>
           </div>
-
-          <table class="table" style="width: 100%; border-collapse: collapse;">
+    
+          <!-- Alertes Doublons & Manquants -->
+          <div id="c2-alerts"></div>
+    
+          <!-- Bandeau récapitulatif du stock pour les mesures de l'adhérent -->
+          <div id="c2-stock-summary" style="margin-top: 15px; margin-bottom: 15px; padding: 12px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px;">
+            <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #334155;">Disponibilité théorique en stock pour les mesures de l'adhérent :</h4>
+            <div id="c2-stock-badges" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+          </div>
+    
+          <!-- Formulaire attribution -->
+          <form id="form-attribution" onsubmit="assignAllEquipment(event)">
+            
+            <!-- BLOC 1 : ÉQUIPEMENTS OBLIGATOIRES -->
+            <div class="card" style="margin-top: 15px; border: 1px solid #ddd; padding: 15px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h4 style="margin: 0;">Équipements Obligatoires</h4>
+                <span id="c2-mandatory-counter" class="badge" style="font-size: 1.05em; padding: 6px 12px; background-color: #ff9800; color: #fff; border-radius: 4px;">
+                  Complet : 0 / 7
+                </span>
+              </div>
+    
+              <table class="table" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                  <tr style="border-bottom: 2px solid #ddd; text-align: left;">
+                    <th style="padding: 8px; width: 35%;">Équipement & Mesure</th>
+                    <th style="padding: 8px; width: 30%;">Taille sélectionnée</th>
+                    <th style="padding: 8px; width: 35%;">Marque & Modèle</th>
+                  </tr>
+                </thead>
+                <tbody id="grid-mandatory-body">
+                  <!-- Généré en JS -->
+                </tbody>
+              </table>
+            </div>
+    
+            <!-- BLOC 2 : ÉQUIPEMENTS FACULTATIFS -->
+            <div class="card" style="margin-top: 20px; border: 1px solid #ddd; padding: 15px;">
+              <h4 style="margin: 0 0 10px 0;">Équipements Facultatifs</h4>
+    
+              <table class="table" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                  <tr style="border-bottom: 2px solid #ddd; text-align: left;">
+                    <th style="padding: 8px; width: 35%;">Équipement & Mesure</th>
+                    <th style="padding: 8px; width: 30%;">Taille sélectionnée</th>
+                    <th style="padding: 8px; width: 35%;">Marque & Modèle</th>
+                  </tr>
+                </thead>
+                <tbody id="grid-optional-body">
+                  <!-- Généré en JS -->
+                </tbody>
+              </table>
+            </div>
+            
+            <div class="actions-footer mt-2" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 15px;">
+              <button type="button" class="btn btn-secondary" onclick="window.print()">Imprimer la fiche</button>
+              <button type="submit" class="btn btn-primary">Attribuer la sélection</button>
+            </div>
+          </form>
+    
+          <!-- Liste des équipements attribués -->
+          <h4 class="mt-3">Équipements actuellement attribués</h4>
+          <table class="data-table" style="width: 100%;">
             <thead>
-              <tr style="border-bottom: 2px solid #ddd; text-align: left;">
-                <th style="padding: 8px; width: 35%;">Équipement & Mesure</th>
-                <th style="padding: 8px; width: 40%;">Marque & Modèle</th>
-                <th style="padding: 8px; width: 25%;">Taille sélectionnée</th>
+              <tr>
+                <th>Type</th>
+                <th>Marque / Modèle</th>
+                <th>Taille</th>
+                <th>Date remise</th>
+                <th>Action</th>
               </tr>
             </thead>
-            <tbody id="grid-mandatory-body">
-              <!-- Généré en JS -->
-            </tbody>
+            <tbody id="c2-assigned-table"></tbody>
           </table>
+    
+          <div class="actions-footer mt-3" style="text-align: right;">
+            <button type="button" class="btn btn-success" onclick="closeRemiseSession()">Clôturer la remise</button>
+          </div>
         </div>
-
-        <!-- BLOC 2 : ÉQUIPEMENTS FACULTATIFS -->
-        <div class="card" style="margin-top: 20px; border: 1px solid #ddd; padding: 15px;">
-          <h4 style="margin: 0 0 10px 0;">Équipements Facultatifs</h4>
-
-          <table class="table" style="width: 100%; border-collapse: collapse;">
-            <thead>
-              <tr style="border-bottom: 2px solid #ddd; text-align: left;">
-                <th style="padding: 8px; width: 35%;">Équipement & Mesure</th>
-                <th style="padding: 8px; width: 40%;">Marque & Modèle</th>
-                <th style="padding: 8px; width: 25%;">Taille sélectionnée</th>
-              </tr>
-            </thead>
-            <tbody id="grid-optional-body">
-              <!-- Généré en JS -->
-            </tbody>
-          </table>
-        </div>
-        
-        <div class="actions-footer mt-2" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 15px;">
-          <button type="button" class="btn btn-secondary" onclick="window.print()">Imprimer la fiche</button>
-          <button type="submit" class="btn btn-primary">Attribuer la sélection</button>
-        </div>
-      </form>
-
-      <!-- Liste des équipements attribués -->
-      <h4 class="mt-3">Équipements actuellement attribués</h4>
-      <table class="data-table" style="width: 100%;">
-        <thead>
-          <tr>
-            <th>Type</th>
-            <th>Marque / Modèle</th>
-            <th>Taille</th>
-            <th>Date remise</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody id="c2-assigned-table"></tbody>
-      </table>
-
-      <div class="actions-footer mt-3" style="text-align: right;">
-        <button type="button" class="btn btn-success" onclick="closeRemiseSession()">Clôturer la remise</button>
       </div>
-    </div>
-  </div>
-</section>
+    </section>
 
    
     <!-- ADMIN / CSV -->
