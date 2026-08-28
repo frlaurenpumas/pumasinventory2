@@ -4,6 +4,12 @@ let currentUserAdmin = false;
 firebase.auth().onAuthStateChanged(async (user) => {
   if (user) {
     try {
+      // 0. Affichage du nom/email dans l'en-tête
+      const userDisplayEl = document.getElementById("user-display-name");
+      if (userDisplayEl) {
+        userDisplayEl.textContent = user.displayName || user.email;
+      }
+
       // 1. Récupération des Custom Claims pour vérifier le rôle Admin
       const tokenResult = await user.getIdTokenResult();
       currentUserAdmin = !!tokenResult.claims.admin;
