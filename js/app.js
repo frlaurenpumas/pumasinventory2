@@ -389,13 +389,16 @@ function filterInventoryByRule(type, items, adh) {
       case "Jambières": {
         if (!adhTaille) return true;
         const itemTailleMax = Number(item.tailleMax);
-        return itemTailleMax ? itemTailleMax >= (adhTaille + 5) : true;
+        // Doit couvrir la taille de l'adhérent (+5cm), MAIS ne pas dépasser la tranche de taille supérieure
+        // On cherche la taille minimale adaptée : itemTailleMax >= adhTaille + 5
+        // Pour éviter d'afficher le 150/160 quand le 140 convient, on peut restreindre à l'intervalle le plus proche (+20cm max)
+        return itemTailleMax ? (itemTailleMax >= (adhTaille + 5) && itemTailleMax <= (adhTaille + 15)) : true;
       }
 
       case "Casque": {
         if (!adhTete) return true;
         const itemTeteMax = Number(item.tailleMax);
-        return itemTeteMax ? itemTeteMax >= (adhTete + 2) : true;
+        return itemTeteMax ? (itemTeteMax >= (adhTete + 2) && itemTeteMax <= (adhTete + 6)) : true;
       }
 
       case "Gants": {
@@ -417,7 +420,7 @@ function filterInventoryByRule(type, items, adh) {
       case "Crosse": {
         if (!adhTaille) return true;
         const itemTailleMax = Number(item.tailleMax);
-        return itemTailleMax ? itemTailleMax >= adhTaille : true;
+        return itemTailleMax ? (itemTailleMax >= adhTaille && itemTailleMax <= (adhTaille + 10)) : true;
       }
 
       default:
