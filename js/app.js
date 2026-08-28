@@ -226,10 +226,10 @@ async function saveAndSendToComptoir2(e) {
   resetAdherentForm();
 }
 
-// --- COMPTOIR 2 : DISTRIBUTION & ÉCHANGES (V3 - Taille d'abord & Débrayage) ---
+// --- COMPTOIR 2 : DISTRIBUTION & ÉCHANGES (V3 Cleaned) ---
 
-// État local des filtres débrayés (par ligne key)
 const overrideFilterMap = new Map();
+let unsubscribeAssignedEquipment = null; // Pour stopper l'écoute du précédent adhérent
 
 function listenToQueueC2() {
   db.collection("adherents")
@@ -243,16 +243,80 @@ function listenToQueueC2() {
         const adh = { id: doc.id, ...doc.data() };
         const li = document.createElement("li");
         li.className = `queue-item ${currentAdherentC2 && currentAdherentC2.id === adh.id ? 'active' : ''}`;
-        li.innerHTML = `<strong>${adh.nom.toUpperCase()} ${adh.prenom}</strong><br><small>${adh.categorie || ''}</small>`;
+        
+        // Sécurisation contre nom/prénom indéfinis
+        const nomUpper = (adh.nom || '').toUpperCase();
+        const prenomStr = adh.prenom || '';
+        
+        li.innerHTML = `<strong>${nomUpper} ${prenomStr}</strong><br><small>${adh.categorie || ''}</small>`;
         li.onclick = () => selectAdherentC2(adh);
         queueList.appendChild(li);
       });
     });
 }
 
+function listenToAssignedEquipment(adhId) {
+  if (!adhId) return;
+
+  // On stoppe l'écoute précédente si elle existe
+  if (unsubscribeAssignedEquipment) {
+    unsubscribeAssignedEquipment();
+  }
+
+  unsubscribeAssignedEquipment = db.collection("loans")
+    .where("adhId", "==", adhId)
+    .where("statut", "==", "attribue")
+    .onSnapshot(
+      (snapshot) => {
+        assignedEquipmentCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderAssignedTable();
+        if (typeof checkPackAndAlerts === "function") checkPackAndAlerts();
+      },
+      (error) => {
+        console.error("Erreur lors de l'écoute des prêts :", error);
+      }
+    );
+}
+
+function renderAssignedTable() {
+  const tbody = document.getElementById("c2-assigned-table");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+
+  if (!assignedEquipmentCache || assignedEquipmentCache.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #666;">Aucun équipement attribué pour le moment.</td></tr>`;
+    return;
+  }
+
+  assignedEquipmentCache.forEach(item => {
+    const tr = document.createElement("tr");
+    const dateStr = item.dateRemise && item.dateRemise.toDate 
+      ? new Date(item.dateRemise.toDate()).toLocaleString("fr-FR") 
+      : "-";
+
+    tr.innerHTML = `
+      <td>${item.type || '-'}</td>
+      <td>${item.marque || ''} ${item.modele || ''}</td>
+      <td>${item.taille || '-'}</td>
+      <td>${dateStr}</td>
+      <td>
+        <button type="button" class="btn btn-danger btn-sm" data-id="${item.id}" data-eqid="${item.eqId}">
+          Échanger / Restituer
+        </button>
+      </td>
+    `;
+
+    // Évite d'injecter des IDs directement dans du HTML inline onclick
+    const btn = tr.querySelector("button");
+    btn.addEventListener("click", () => returnEquipment(item.id, item.eqId));
+
+    tbody.appendChild(tr);
+  });
+}
+
 async function selectAdherentC2(adh) {
   currentAdherentC2 = adh;
-  overrideFilterMap.clear(); // Réinitialise les débrayages
+  overrideFilterMap.clear();
   
   const workarea = document.getElementById("c2-workarea");
   if (workarea) workarea.style.display = "block";
@@ -310,7 +374,7 @@ function renderStockSummaryBandeau() {
   });
 }
 
-// --- REGLES METIER DU SUFFISANCE DE TAILLE ---
+// --- RÈGLES MÉTIER DU SUFFISANCE DE TAILLE ---
 function filterInventoryByRule(type, items, adh) {
   if (!adh) return items;
 
@@ -380,7 +444,7 @@ function getFormattedMeasure(type, adh) {
   }
 }
 
-// --- GRILLE D'ATTRIBUTION (Taille d'abord -> Modèle ensuite) ---
+// --- GRILLE D'ATTRIBUTION ---
 function renderGridSection(equipmentList, containerId, isMandatory) {
   const tbody = document.getElementById(containerId);
   if (!tbody) return;
@@ -394,7 +458,6 @@ function renderGridSection(equipmentList, containerId, isMandatory) {
     const allInStock = (allInventoryCache || []).filter(item => item.type === eqConfig.type && item.statut === "en_stock");
     const suggestedStock = filterInventoryByRule(eqConfig.type, allInStock, currentAdherentC2);
     
-    // Stock utilisé selon l'état de débrayage
     const activeStock = isOverridden ? allInStock : (suggestedStock.length > 0 ? suggestedStock : allInStock);
 
     const tr = document.createElement("tr");
@@ -403,26 +466,32 @@ function renderGridSection(equipmentList, containerId, isMandatory) {
       <td style="padding: 8px;">
         <strong>${eqConfig.label}</strong><br>
         <small style="color: #666;">Mesure : <strong>${measureStr}</strong></small><br>
-        <button type="button" class="btn btn-sm" onclick="toggleOverride('${key}', ${isMandatory})" 
+        <button type="button" class="btn btn-sm btn-override" 
                 style="margin-top: 4px; font-size: 11px; padding: 2px 6px; background-color: ${isOverridden ? '#ef4444' : '#64748b'}; color: white; border: none; border-radius: 4px; cursor: pointer;">
           ${isOverridden ? '🔓 Débrayé (Tout le stock)' : '🔒 Filtré (Suggestion)'}
         </button>
       </td>
-      <!-- COLONNE 1 : SELECTION DE LA TAILLE EN PREMIER -->
       <td style="padding: 8px;">
-        <select id="grid-size-${key}" data-type="${eqConfig.type}" onchange="onSizeChange('${key}', '${eqConfig.type}')" style="width: 100%; padding: 5px;">
+        <select id="grid-size-${key}" data-type="${eqConfig.type}" style="width: 100%; padding: 5px;">
           <option value="">-- Choisir Taille --</option>
         </select>
       </td>
-      <!-- COLONNE 2 : SELECTION DU MODELE EN SECOND -->
       <td style="padding: 8px;">
-        <select id="grid-model-${key}" data-type="${eqConfig.type}" onchange="onGridChange('${key}')" style="width: 100%; padding: 5px;">
+        <select id="grid-model-${key}" data-type="${eqConfig.type}" style="width: 100%; padding: 5px;">
           <option value="">-- Choisir Taille d'abord --</option>
         </select>
       </td>
     `;
-    tbody.appendChild(tr);
 
+    // Attachement propre des événements
+    tr.querySelector(".btn-override").onclick = () => toggleOverride(key, isMandatory);
+    const sizeSelect = tr.querySelector(`#grid-size-${key}`);
+    const modelSelect = tr.querySelector(`#grid-model-${key}`);
+    
+    sizeSelect.onchange = () => onSizeChange(key, eqConfig.type);
+    modelSelect.onchange = () => onGridChange(key);
+
+    tbody.appendChild(tr);
     populateSizesFirst(key, eqConfig.type, activeStock);
   });
 }
@@ -447,7 +516,6 @@ function populateSizesFirst(key, type, stockItems) {
     return;
   }
 
-  // Regroupement des tailles uniques
   const uniqueSizeMap = new Map();
   stockItems.forEach(item => {
     let label = item.taille || "Taille Unique";
@@ -489,7 +557,6 @@ function onSizeChange(key, type) {
     if (suggested.length > 0) stock = suggested;
   }
 
-  // Filtrer les modèles disponibles pour cette taille exacte
   const matchingItems = stock.filter(i => String(i.taille) === String(selectedSize));
   const models = [...new Set(matchingItems.map(i => `${i.marque || ''} ${i.modele || ''}`.trim()))].filter(Boolean);
 
@@ -500,7 +567,6 @@ function onSizeChange(key, type) {
     modelSelect.appendChild(opt);
   });
 
-  // Sélectionne automatiquement le modèle s'il n'y en a qu'un seul disponible en rayon
   if (models.length === 1) {
     modelSelect.value = models[0];
   }
@@ -530,7 +596,7 @@ function updateMandatoryCounter() {
 }
 
 async function assignAllEquipment(e) {
-  e.preventDefault();
+  if (e) e.preventDefault();
   if (!currentAdherentC2) return;
 
   const batch = db.batch();
@@ -549,6 +615,7 @@ async function assignAllEquipment(e) {
       const selectedModel = modelSelect.value;
       const selectedSize = sizeSelect.value;
 
+      // On trouve le matériel disponible
       const itemToAssign = allInventoryCache.find(eq => {
         const itemModel = `${eq.marque || ''} ${eq.modele || ''}`.trim();
         return eq.type === itemConfig.type &&
@@ -558,6 +625,9 @@ async function assignAllEquipment(e) {
       });
 
       if (itemToAssign) {
+        // Marquage immédiat dans l'objet local pour ne pas ré-attribuer le même article
+        itemToAssign.statut = "attribue";
+
         const eqRef = db.collection("equipment").doc(itemToAssign.id);
         batch.update(eqRef, { statut: "attribue" });
 
@@ -574,7 +644,6 @@ async function assignAllEquipment(e) {
           dateRestitution: null
         });
 
-        itemToAssign.statut = "attribue";
         itemsAssignedCount++;
       }
     }
@@ -585,27 +654,43 @@ async function assignAllEquipment(e) {
     return;
   }
 
-  await batch.commit();
-  await loadInventory();
+  try {
+    await batch.commit();
+    await loadInventory();
 
-  renderStockSummaryBandeau();
-  renderGridSection(MANDATORY_EQUIPMENTS, "grid-mandatory-body", true);
-  renderGridSection(OPTIONAL_EQUIPMENTS, "grid-optional-body", false);
-  updateMandatoryCounter();
+    renderStockSummaryBandeau();
+    renderGridSection(MANDATORY_EQUIPMENTS, "grid-mandatory-body", true);
+    renderGridSection(OPTIONAL_EQUIPMENTS, "grid-optional-body", false);
+    updateMandatoryCounter();
+  } catch (error) {
+    console.error("Erreur lors de l'attribution :", error);
+    alert("Une erreur est survenue lors de l'enregistrement de l'attribution.");
+  }
 }
 
 async function closeRemiseSession() {
   if (!currentAdherentC2) return;
 
-  await db.collection("adherents").doc(currentAdherentC2.id).update({
-    statut: "Équipé",
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-  });
+  try {
+    await db.collection("adherents").doc(currentAdherentC2.id).update({
+      statut: "Équipé",
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
 
-  alert(`Session clôturée pour ${currentAdherentC2.nom} ${currentAdherentC2.prenom}. Statut passé à "Équipé".`);
-  const workarea = document.getElementById("c2-workarea");
-  if (workarea) workarea.style.display = "none";
-  currentAdherentC2 = null;
+    alert(`Session clôturée pour ${currentAdherentC2.nom || ''} ${currentAdherentC2.prenom || ''}. Statut passé à "Équipé".`);
+    
+    // Nettoyage de l'écoute Firestore
+    if (unsubscribeAssignedEquipment) {
+      unsubscribeAssignedEquipment();
+      unsubscribeAssignedEquipment = null;
+    }
+
+    const workarea = document.getElementById("c2-workarea");
+    if (workarea) workarea.style.display = "none";
+    currentAdherentC2 = null;
+  } catch (error) {
+    console.error("Erreur clôture session :", error);
+  }
 }
 
 // --- ADMIN / IMPORT & EXPORT CSV (PapaParse) ---
