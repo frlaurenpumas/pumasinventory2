@@ -584,10 +584,54 @@ function renderGridSection(equipmentList, containerId, isMandatory) {
 function toggleOverride(key, isMandatory) {
   const currentState = overrideFilterMap.get(key) || false;
   overrideFilterMap.set(key, !currentState);
-  
+
   const list = isMandatory ? MANDATORY_EQUIPMENTS : OPTIONAL_EQUIPMENTS;
   const containerId = isMandatory ? "grid-mandatory-body" : "grid-optional-body";
+
+  // 1. Sauvegarde des choix déjà effectués par le bénévole dans la section
+  const savedSelections = new Map();
+  list.forEach((eq, index) => {
+    const k = isMandatory ? `m_${index}` : `o_${index}`;
+    const sizeSelect = document.getElementById(`grid-size-${k}`);
+    const modelSelect = document.getElementById(`grid-model-${k}`);
+
+    if (sizeSelect || modelSelect) {
+      savedSelections.set(k, {
+        size: sizeSelect ? sizeSelect.value : "",
+        model: modelSelect ? modelSelect.value : ""
+      });
+    }
+  });
+
+  // 2. Régénération du tableau avec le nouvel état (filtré ou débrayé)
   renderGridSection(list, containerId, isMandatory);
+
+  // 3. Restauration des choix précédemment faits
+  list.forEach((eqConfig, index) => {
+    const k = isMandatory ? `m_${index}` : `o_${index}`;
+    const saved = savedSelections.get(k);
+
+    if (saved && saved.size) {
+      const sizeSelect = document.getElementById(`grid-size-${k}`);
+      if (sizeSelect) {
+        sizeSelect.value = saved.size;
+        
+        // Relance la mise à jour du menu modèle pour cette ligne
+        onSizeChange(k, eqConfig.type);
+
+        // Si un modèle était aussi sélectionné, on le réapplique
+        if (saved.model) {
+          const modelSelect = document.getElementById(`grid-model-${k}`);
+          if (modelSelect && Array.from(modelSelect.options).some(opt => opt.value === saved.model)) {
+            modelSelect.value = saved.model;
+          }
+        }
+      }
+    }
+  });
+
+  // 4. Recalcul du compteur d'équipements obligatoires
+  updateMandatoryCounter();
 }
 
 function populateSizesFirst(key, type, stockItems) {
