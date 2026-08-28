@@ -7,19 +7,20 @@
   <link rel="stylesheet" href="css/styles.css">
   <link rel="icon" href="data:,">
   
-  <!-- Firebase SDK (Compat version pour simplicité d'intégration script direct) -->
+  <!-- Firebase SDKs (Toutes en version 9.23.0 - Compat) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   
+  <!-- Configuration Firebase -->
   <script src="js/firebase-config.js"></script>
 
-  <script src="js/auth.js"></script>
-  <script src="js/app.js"></script>
-  
   <!-- PapaParse CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-  
+
+  <!-- Scripts applicatifs (déplacés avec defer pour charger après le DOM) -->
+  <script src="js/auth.js" defer></script>
+  <script src="js/app.js" defer></script>
 </head>
 <body>
 
