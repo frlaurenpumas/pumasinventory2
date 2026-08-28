@@ -34,10 +34,10 @@
 <!-- COMPTOIR 1 -->
 <section id="comptoir1" class="tab-content active">
   
-  <h2 style="margin: 0; flex-shrink: 0;">Comptoir 1 : Accueil, Mesures & Mise à jour</h2>
+  <h2 style="margin: 0 0 15px 0;">Comptoir 1 : Accueil, Mesures & Mise à jour</h2>
   
   <!-- RECHERCHE / CRÉATION (Haut & Centré) -->
-  <div class="card" style="max-width: 700px; width: 100%; margin: 0 auto; flex-shrink: 0; padding: 15px;">
+  <div class="card" style="max-width: 700px; width: 100%; margin: 0 auto 20px auto; padding: 15px;">
     <h3 style="margin-top: 0; text-align: center;">Recherche / Création</h3>
     <div class="search-box" style="display: flex; gap: 10px; justify-content: center;">
       <input type="text" id="c1-search" placeholder="Tapez les premières lettres du Nom ou Prénom..." autocomplete="off" oninput="onSearchAdherent(this.value)" style="flex: 1;">
@@ -47,10 +47,10 @@
   </div>
 
   <!-- CONTENEUR PRINCIPAL BI-COLONNE -->
-  <div style="display: flex; gap: 20px; flex: 1; min-height: 0; overflow: hidden;">
+  <div style="display: flex; gap: 20px; align-items: flex-start;">
 
     <!-- COLONNE GAUCHE : FICHE ADHÉRENT -->
-    <div class="card" style="flex: 1; min-width: 380px; overflow-y: auto; margin: 0; padding: 15px;">
+    <div class="card" style="flex: 1; min-width: 380px; margin: 0; padding: 15px;">
       <h3 style="margin-top: 0;">Fiche Adhérent</h3>
       <form id="form-adherent" onsubmit="saveAndSendToComptoir2(event)">
         <input type="hidden" id="adh-id">
@@ -126,28 +126,31 @@
       </form>
     </div>
 
-    <!-- COLONNE DROITE : TABLEAU DE CONSULTATION (3 COLONNES) -->
-    <div class="card" style="flex: 1.2; display: flex; flex-direction: column; margin: 0;">
-      <h3 style="margin-top: 0; flex-shrink: 0;">Liste des adhérents enregistrés</h3>
+    <!-- COLONNE DROITE : TABLEAU DE CONSULTATION -->
+    <div class="card" style="flex: 1.2; margin: 0; padding: 15px;">
+      <h3 style="margin-top: 0;">Liste des adhérents enregistrés</h3>
       
-        <div class="table-container">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Nom</th>
-                <th>Prénom</th>
-                <th>Catégorie</th>
-              </tr>
-            </thead>
-            <tbody id="c1-adherents-list-body">
-              <!-- Rempli dynamiquement via JS -->
-            </tbody>
-          </table>
-        </div>
+      <!-- CONTENEUR AVEC DEFILEMENT HAUTEUR FIXE (500px) -->
+      <div class="table-container" style="max-height: 500px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px;">
+        <table class="data-table" style="width: 100%;">
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Prénom</th>
+              <th>Catégorie</th>
+            </tr>
+          </thead>
+          <tbody id="c1-adherents-list-body">
+            <!-- Rempli dynamiquement via JS -->
+          </tbody>
+        </table>
       </div>
+    </div>
 
   </div>
 </section>
+
+    
     <!-- COMPTOIR 2 -->
 <section id="comptoir2" class="tab-content">
   <h2>Comptoir 2 : Distribution & Échanges</h2>
