@@ -50,6 +50,17 @@ main { padding: 2rem; max-width: 1200px; margin: 0 auto; }
   margin-bottom: 1.5rem;
 }
 
+.user-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #e2e8f0;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #1e293b;
+}
+                                                    
 .form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
