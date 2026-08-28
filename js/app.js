@@ -1007,7 +1007,7 @@ async function exportInventoryCSV() {
       };
     });
 
-    // 3. Horodatage du fichier (ex: 2026-08-27_14h30)
+    // 3. Horodatage du fichier
     const now = new Date();
     const dateStr = now.toISOString().split("T")[0];
     const timeStr = `${String(now.getHours()).padStart(2, "0")}h${String(now.getMinutes()).padStart(2, "0")}`;
@@ -1021,68 +1021,70 @@ async function exportInventoryCSV() {
 }
 
 async function exportLoansCSV() {
-  const snapshot = await db.collection("loans").get();
-  
-  const data = snapshot.docs.map(doc => {
-    const d = doc.data();
+  try {
+    const [loansSnapshot, adhSnapshot] = await Promise.all([
+      db.collection("loans").get(),
+      db.collection("adherents").get()
+    ]);
 
-    // Formatage propre des dates
-    const dateRemise = d.dateRemise && typeof d.dateRemise.toDate === 'function' 
-      ? d.dateRemise.toDate().toLocaleDateString("fr-FR") 
-      : (d.dateRemise || "");
+    const adherentsMap = {};
+    adhSnapshot.forEach(doc => {
+      adherentsMap[doc.id] = doc.data();
+    });
 
-    const dateRestitution = d.dateRestitution && typeof d.dateRestitution.toDate === 'function' 
-      ? d.dateRestitution.toDate().toLocaleDateString("fr-FR") 
-      : (d.dateRestitution || "");
+    const data = loansSnapshot.docs.map(doc => {
+      const d = doc.data();
 
-    return {
-      "ID Prêt": doc.id,
-      "Nom Adhérent": d.adhNom || "N/C",
-      "Prénom Adhérent": d.adhPrenom || "N/C",
-      "Catégorie Adhérent": d.adhCategorie || "N/C",
-      "Type Équipement": d.type || "",
-      "Marque": d.marque || "",
-      "Modèle": d.modele || "",
-      "Taille": d.taille || "",
-      "Statut": d.statut || "",
-      "Date Remise": dateRemise,
-      "Date Restitution": dateRestitution,
-      "ID Adhérent (Technique)": d.adhId || "",
-      "ID Équipement (Technique)": d.eqId || ""
-    };
-  });
+      // Recours à la map d'adhérents si les champs ne sont pas dénormalisés (anciens prêts)
+      const fallbackAdh = adherentsMap[d.adhId] || {};
+      const nom = d.adhNom || fallbackAdh.nom || "N/C";
+      const prenom = d.adhPrenom || fallbackAdh.prenom || "N/C";
+      const categorie = d.adhCategorie || fallbackAdh.categorie || "N/C";
 
-  // --- Transformation des objets JSON en fichier CSV téléchargeable ---
-  if (data.length === 0) {
-    alert("Aucun prêt à exporter.");
-    return;
+      const dateRemise = d.dateRemise && typeof d.dateRemise.toDate === 'function' 
+        ? d.dateRemise.toDate().toLocaleDateString("fr-FR") 
+        : (d.dateRemise || "");
+
+      const dateRestitution = d.dateRestitution && typeof d.dateRestitution.toDate === 'function' 
+        ? d.dateRestitution.toDate().toLocaleDateString("fr-FR") 
+        : (d.dateRestitution || "");
+
+      return {
+        "ID Prêt": doc.id,
+        "Nom Adhérent": nom,
+        "Prénom Adhérent": prenom,
+        "Catégorie Adhérent": categorie,
+        "Type Équipement": d.type || "",
+        "Marque": d.marque || "",
+        "Modèle": d.modele || "",
+        "Taille": d.taille || "",
+        "Statut": d.statut || "",
+        "Date Remise": dateRemise,
+        "Date Restitution": dateRestitution,
+        "ID Adhérent (Technique)": d.adhId || "",
+        "ID Équipement (Technique)": d.eqId || ""
+      };
+    });
+
+    if (data.length === 0) {
+      return alert("Aucun prêt à exporter.");
+    }
+
+    const now = new Date();
+    const dateStr = now.toISOString().split("T")[0];
+    const filename = `export_registre_prets_${dateStr}.csv`;
+
+    downloadCSV(data, filename);
+  } catch (error) {
+    console.error("Erreur lors de l'export des prêts :", error);
+    alert("Impossible d'exporter le registre des prêts.");
   }
-
-  const headers = Object.keys(data[0]);
-  const csvRows = [
-    headers.join(";"), // En-têtes
-    ...data.map(row => 
-      headers.map(header => `"${String(row[header] || '').replace(/"/g, '""')}"`).join(";")
-    )
-  ];
-
-  // Le prefix \uFEFF garantit la bonne ouverture des accents UTF-8 dans Excel
-  const csvString = "\uFEFF" + csvRows.join("\n");
-  const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
-  
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = `registre_prets_${new Date().toISOString().slice(0, 10)}.csv`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
 }
-
-  downloadCSV(data, "export_registre_prets_horodate.csv");
 
 function downloadCSV(data, filename) {
   const csv = Papa.unparse(data, { delimiter: ";" });
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  // Le préfixe \uFEFF force Excel à lire correctement l'UTF-8 avec les accents
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
   link.setAttribute("download", filename);
