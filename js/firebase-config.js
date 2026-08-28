@@ -9,7 +9,13 @@ const firebaseConfig = {
   measurementId: "G-K0HTSGSE9W" 
 }; 
 
-// Initialisation globalement exposée
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-console.log("[DEBUG] Firebase Firestore initialisé avec succès.");
+// 2. Initialisation de l'application Firebase
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
+
+// 3. Export des instances Auth et Firestore
+const auth = firebase.auth();
+
+// On vérifie que le module Firestore est bien présent avant de l'instancier
+const db = typeof firebase.firestore === 'function' ? firebase.firestore() : null;
