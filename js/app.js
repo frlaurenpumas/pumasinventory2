@@ -1079,7 +1079,6 @@ async function exportLoansCSV() {
 }
 
   downloadCSV(data, "export_registre_prets_horodate.csv");
-}
 
 function downloadCSV(data, filename) {
   const csv = Papa.unparse(data, { delimiter: ";" });
