@@ -80,18 +80,15 @@ async function handleAddSingleEquipment(event) {
   const btnSubmit = document.getElementById("btn-save-eq");
   const feedback = document.getElementById("reassort-feedback");
   
-  // 1. Récupération des valeurs du formulaire
+  // Récupération des valeurs du formulaire
   const typeVal = document.getElementById("eq-type")?.value || "";
   const marqueVal = document.getElementById("eq-marque")?.value.trim() || "";
   const modeleVal = document.getElementById("eq-modele")?.value.trim() || "";
   const tailleVal = document.getElementById("eq-taille")?.value.trim() || "";
   
-  // Nouveaux champs pour la compatibilité avec le comptoir
   const rawTailleMax = document.getElementById("eq-taille-max")?.value.trim() || "";
   const parsedTailleMax = rawTailleMax !== "" ? Number(rawTailleMax) : null;
   const tailleEnfantVal = document.getElementById("eq-taille-enfant")?.value.trim() || "";
-
-  const etatVal = document.getElementById("eq-etat")?.value || "Bon état";
   const provenanceVal = document.getElementById("eq-provenance")?.value || "Achat";
 
   // Contrôle préventif du type
@@ -103,7 +100,7 @@ async function handleAddSingleEquipment(event) {
     return;
   }
 
-  // 2. Vérification préventive pour tailleMax (strictement limitée aux équipements sur stature en cm)
+  // Vérification préventive pour tailleMax (équipements sur stature en cm)
   const needsTailleMax = ["Casque", "Plastron", "Coudières", "Culotte", "Jambières", "Crosse"].includes(typeVal);
   
   if (needsTailleMax && (parsedTailleMax === null || isNaN(parsedTailleMax))) {
@@ -120,6 +117,7 @@ async function handleAddSingleEquipment(event) {
   }
 
   try {
+    // Récupération du bénévole connecté via Firebase Auth
     const user = firebase.auth().currentUser;
     const benevoleEmail = user ? user.email : "Inconnu";
     const benevoleName = user ? (user.displayName || user.email) : "Inconnu";
@@ -131,17 +129,15 @@ async function handleAddSingleEquipment(event) {
       taille: tailleVal,
       tailleEnfant: tailleEnfantVal,
       tailleMax: parsedTailleMax !== null && !isNaN(parsedTailleMax) ? parsedTailleMax : null,
-      etat: etatVal,
       provenance: provenanceVal,
       
-      // Statut initial pour distribution immédiate au C2
       statut: "en_stock",
       createdByName: benevoleName,
       createdByEmail: benevoleEmail,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
-    // Collection "equipment" (au singulier)
+    // Ajout dans la collection "equipment"
     const docRef = await db.collection("equipment").add(newEquipment);
 
     if (feedback) {
@@ -149,30 +145,25 @@ async function handleAddSingleEquipment(event) {
       feedback.className = "feedback-msg success";
     }
 
+    // Remise à zero explicite du formulaire
     const form = document.getElementById("add-equipment-form");
     if (form) {
-      // Reinitialise le formulaire (remet aux valeurs par défaut)
       form.reset();
-
-      // Force le vidage de tous les champs de texte et nombres
       form.querySelectorAll("input[type='text'], input[type='number'], textarea").forEach(input => {
         input.value = "";
       });
-
-      // Remet les sélecteurs à la valeur par défaut
       form.querySelectorAll("select").forEach(select => {
         select.selectedIndex = 0;
       });
     }
 
-    // Rétablissement de l'état initial des champs dynamiques après le reset
+    // Réinitialisation de l'affichage de tailleMax
     const inputTailleMax = document.getElementById("eq-taille-max");
     if (inputTailleMax) {
       inputTailleMax.disabled = false;
       if (inputTailleMax.parentElement) inputTailleMax.parentElement.style.opacity = "1";
     }
 
-    // Recharge l'inventaire si la fonction existe dans ton app
     if (typeof loadInventory === "function") {
       await loadInventory();
     }
@@ -216,7 +207,6 @@ async function handleRemoveEquipment(event) {
     const benevoleEmail = user ? user.email : "Inconnu";
     const benevoleName = user ? (user.displayName || user.email) : "Inconnu";
 
-    // Correction de la collection : "equipment" (au singulier)
     const eqRef = db.collection("equipment").doc(eqId);
     const docSnap = await eqRef.get();
 
@@ -229,9 +219,8 @@ async function handleRemoveEquipment(event) {
       return;
     }
 
-    // Mise à jour du statut (soft delete)
     await eqRef.update({
-      statut: motif, // ex: "hors_service", "perdu", "vendu"
+      statut: motif,
       updatedByName: benevoleName,
       updatedByEmail: benevoleEmail,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
