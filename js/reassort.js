@@ -150,7 +150,20 @@ async function handleAddSingleEquipment(event) {
     }
 
     const form = document.getElementById("add-equipment-form");
-    if (form) form.reset();
+    if (form) {
+      // Reinitialise le formulaire (remet aux valeurs par défaut)
+      form.reset();
+
+      // Force le vidage de tous les champs de texte et nombres
+      form.querySelectorAll("input[type='text'], input[type='number'], textarea").forEach(input => {
+        input.value = "";
+      });
+
+      // Remet les sélecteurs à la valeur par défaut
+      form.querySelectorAll("select").forEach(select => {
+        select.selectedIndex = 0;
+      });
+    }
 
     // Rétablissement de l'état initial des champs dynamiques après le reset
     const inputTailleMax = document.getElementById("eq-taille-max");
