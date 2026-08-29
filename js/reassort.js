@@ -120,7 +120,7 @@ async function handleAddSingleEquipment(event) {
     // Récupération du bénévole connecté via Firebase Auth
     const user = firebase.auth().currentUser;
     const benevoleEmail = user ? user.email : "Inconnu";
-    const benevoleName = user ? (user.displayName || user.email) : "Inconnu";
+    
 
     const newEquipment = {
       type: typeVal,
@@ -132,7 +132,6 @@ async function handleAddSingleEquipment(event) {
       provenance: provenanceVal,
       
       statut: "en_stock",
-      createdByName: benevoleName,
       createdByEmail: benevoleEmail,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
@@ -205,8 +204,7 @@ async function handleRemoveEquipment(event) {
   try {
     const user = firebase.auth().currentUser;
     const benevoleEmail = user ? user.email : "Inconnu";
-    const benevoleName = user ? (user.displayName || user.email) : "Inconnu";
-
+    
     const eqRef = db.collection("equipment").doc(eqId);
     const docSnap = await eqRef.get();
 
@@ -221,7 +219,6 @@ async function handleRemoveEquipment(event) {
 
     await eqRef.update({
       statut: motif,
-      updatedByName: benevoleName,
       updatedByEmail: benevoleEmail,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
