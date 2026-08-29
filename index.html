@@ -307,17 +307,12 @@
               <label for="eq-taille">Taille *</label>
               <input type="text" id="eq-taille" placeholder="ex: Sr M, Jr L, 14\" required />
             </div>
-    
+
             <div class="form-group">
-              <label for="eq-etat">État *</label>
-              <select id="eq-etat" required>
-                <option value="Neuf">Neuf</option>
-                <option value="Très bon état">Très bon état</option>
-                <option value="Bon état">Bon état</option>
-                <option value="État moyen">État moyen</option>
-              </select>
+              <label for="eq-taille-max">Taille MAX (cm) * <small style="color: #666;">(Essentiel pour les suggestions du comptoir, ex: 140, 150)</small></label>
+              <input type="number" id="eq-taille-max" placeholder="Ex: 140" min="50" max="220" step="5">
             </div>
-    
+                        
             <div class="form-group">
               <label for="eq-provenance">Origine de l'entrée *</label>
               <select id="eq-provenance" required>
