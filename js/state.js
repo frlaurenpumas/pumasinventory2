@@ -1,8 +1,3 @@
-// Variable d'état globale
-let currentAdherentC2 = null;
-let allInventoryCache = [];
-let assignedEquipmentCache = [];
-
 // --- CONSTANTES MÉTIER RÉUTILISABLES ---
 const MANDATORY_EQUIPMENTS = [
   { type: "Casque", label: "Casque" },
