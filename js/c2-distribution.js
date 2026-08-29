@@ -204,6 +204,10 @@ function filterInventoryByRule(type, items, adh) {
   const adhTaille = Number(adh.tailleCm) || 0;
   const adhTete = Number(adh.tourTeteCm) || 0;
 
+ function getFilteredItemsForAdherent(type, items, adh) {
+  const adhTete = Number(adh.tailleTeteCm) || 0;
+  const adhTaille = Number(adh.tailleCm) || 0;
+
   switch (type) {
     case "Casque": {
       if (!adhTete) return items;
@@ -215,19 +219,13 @@ function filterInventoryByRule(type, items, adh) {
       });
     }
 
+    // Regroupement de Plastron, Coudières, Culotte, Jambières ET Crosse
     case "Plastron":
     case "Coudières":
     case "Culotte":
-    case "Jambières": {
-      if (!adhTaille) return items;
-      // Ajout de la marge fixe de +3cm avant arrondi à la dizaine supérieure
-      const targetSize = Math.ceil((adhTaille + 3) / 10) * 10;
-      return items.filter(i => Number(i.tailleMax) === targetSize);
-    }
-
+    case "Jambières":
     case "Crosse": {
       if (!adhTaille) return items;
-      // Idem pour la crosse (+3cm de marge d'anticipation)
       const targetSize = Math.ceil((adhTaille + 3) / 10) * 10;
       return items.filter(i => Number(i.tailleMax) === targetSize);
     }
@@ -248,7 +246,10 @@ function filterInventoryByRule(type, items, adh) {
       });
     }
 
+    case "Maillot":
+    case "Sac":
     default:
+      // Pas de filtrage métrique strict : retourne tous les équipements disponibles
       return items;
   }
 }
