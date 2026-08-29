@@ -1,4 +1,4 @@
-// --- COMPTOIR 2 : DISTRIBUTION & ÉCHANGES (V3 Cleaned) ---
+// --- COMPTOIR 2 : DISTRIBUTION & ÉCHANGES (V3 Cleaned & Securised) ---
 
 const overrideFilterMap = new Map();
 let unsubscribeAssignedEquipment = null; // Pour stopper l'écoute du précédent adhérent
@@ -78,7 +78,6 @@ function renderAssignedTable() {
       </td>
     `;
 
-    // Évite d'injecter des IDs directement dans du HTML inline onclick
     const btn = tr.querySelector("button");
     btn.addEventListener("click", () => returnEquipment(item.id, item.eqId));
 
@@ -146,27 +145,23 @@ function renderStockSummaryBandeau() {
   });
 }
 
-// --- RÈGLES MÉTIER : TAILLE CIBLE STRICTE (Débrayage obligatoire si rupture) ---
-
 // --- TRI INTELLIGENT DES TAILLES DANS LES MENUS DÉROULANTS ---
 function sortSizes(sizeA, sizeB, type) {
   const strA = String(sizeA || "").trim().toUpperCase();
   const strB = String(sizeB || "").trim().toUpperCase();
 
-  // 1. Priorité aux catégories / préfixes : YT (Youth) < JR (Junior) < SR (Senior)
   const getCategoryRank = (s) => {
     if (s.includes("YT") || s.includes("YTH") || s.includes("YOUTH")) return 1;
     if (s.includes("JR") || s.includes("JUNIOR")) return 2;
     if (s.includes("INT") || s.includes("INTERMEDIATE")) return 3;
     if (s.includes("SR") || s.includes("SENIOR")) return 4;
-    return 5; // Sans catégorie précisée
+    return 5;
   };
 
   const catRankA = getCategoryRank(strA);
   const catRankB = getCategoryRank(strB);
   if (catRankA !== catRankB) return catRankA - catRankB;
 
-  // 2. Extrait les nombres pour les Patins, Gants, Jambières (ex: '9"', '10.5', '14"')
   const numA = parseFloat(strA.replace(",", ".").replace(/[^0-9.]/g, ""));
   const numB = parseFloat(strB.replace(",", ".").replace(/[^0-9.]/g, ""));
 
@@ -174,10 +169,8 @@ function sortSizes(sizeA, sizeB, type) {
     return numA - numB;
   }
 
-  // 3. Ordre des tailles textuelles standard
   const textOrder = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "3XL"];
   
-  // Nettoie la chaîne pour chercher le code taille (ex: "JR S" -> "S")
   const findTextRank = (s) => {
     const tokens = s.split(/[\s-]+/);
     for (const token of tokens) {
@@ -194,7 +187,6 @@ function sortSizes(sizeA, sizeB, type) {
     return rankA - rankB;
   }
 
-  // 4. Fallback : tri alphabétique/numérique standard
   return strA.localeCompare(strB, undefined, { numeric: true, sensitivity: 'base' });
 }
 
@@ -215,7 +207,6 @@ function filterInventoryByRule(type, items, adh) {
       });
     }
 
-    // Regroupement de Plastron, Coudières, Culotte, Jambières ET Crosse
     case "Plastron":
     case "Coudières":
     case "Culotte":
@@ -245,13 +236,12 @@ function filterInventoryByRule(type, items, adh) {
     case "Maillot":
     case "Sac":
     default:
-      // Pas de filtrage métrique strict : retourne tous les équipements disponibles
       return items;
   }
 }
 
 function getRecommendedHelmetSize(tourTeteCm) {
-  const target = Number(tourTeteCm) + 1; // Marge de +1cm
+  const target = Number(tourTeteCm) + 1;
   if (target <= 53) return { code: "XS", max: 53 };
   if (target <= 56) return { code: "S", max: 56 };
   if (target <= 58) return { code: "M", max: 58 };
@@ -274,13 +264,7 @@ function getFormattedMeasure(type, adh) {
     case "Plastron":
     case "Coudières":
     case "Culotte":
-    case "Jambières": {
-      if (!adhTaille) return "N/C";
-      // Affichage de la suggestion basée sur +3cm
-      const recMax = Math.ceil((adhTaille + 3) / 10) * 10;
-      return `${adhTaille} cm (Rec. Taille MAX : ${recMax})`;
-    }
-
+    case "Jambières":
     case "Crosse": {
       if (!adhTaille) return "N/C";
       const recMax = Math.ceil((adhTaille + 3) / 10) * 10;
@@ -337,7 +321,6 @@ function renderGridSection(equipmentList, containerId, isMandatory) {
       </td>
     `;
 
-    // Attachement propre des événements
     tr.querySelector(".btn-override").onclick = () => toggleOverride(key, isMandatory);
     const sizeSelect = tr.querySelector(`#grid-size-${key}`);
     const modelSelect = tr.querySelector(`#grid-model-${key}`);
@@ -354,52 +337,61 @@ function toggleOverride(key, isMandatory) {
   const currentState = overrideFilterMap.get(key) || false;
   overrideFilterMap.set(key, !currentState);
 
-  const list = isMandatory ? MANDATORY_EQUIPMENTS : OPTIONAL_EQUIPMENTS;
-  const containerId = isMandatory ? "grid-mandatory-body" : "grid-optional-body";
-
-  // 1. Sauvegarde des choix déjà effectués par le bénévole dans la section
+  // 1. Sauvegarde Globale de TOUTES les sélections (Obligatoires & Facultatifs)
   const savedSelections = new Map();
-  list.forEach((eq, index) => {
-    const k = isMandatory ? `m_${index}` : `o_${index}`;
-    const sizeSelect = document.getElementById(`grid-size-${k}`);
-    const modelSelect = document.getElementById(`grid-model-${k}`);
-
-    if (sizeSelect || modelSelect) {
-      savedSelections.set(k, {
-        size: sizeSelect ? sizeSelect.value : "",
-        model: modelSelect ? modelSelect.value : ""
-      });
-    }
-  });
-
-  // 2. Régénération du tableau avec le nouvel état (filtré ou débrayé)
-  renderGridSection(list, containerId, isMandatory);
-
-  // 3. Restauration des choix précédemment faits
-  list.forEach((eqConfig, index) => {
-    const k = isMandatory ? `m_${index}` : `o_${index}`;
-    const saved = savedSelections.get(k);
-
-    if (saved && saved.size) {
+  
+  const saveSection = (list, prefix) => {
+    list.forEach((eq, index) => {
+      const k = `${prefix}_${index}`;
       const sizeSelect = document.getElementById(`grid-size-${k}`);
-      if (sizeSelect) {
-        sizeSelect.value = saved.size;
-        
-        // Relance la mise à jour du menu modèle pour cette ligne
-        onSizeChange(k, eqConfig.type);
+      const modelSelect = document.getElementById(`grid-model-${k}`);
 
-        // Si un modèle était aussi sélectionné, on le réapplique
-        if (saved.model) {
-          const modelSelect = document.getElementById(`grid-model-${k}`);
-          if (modelSelect && Array.from(modelSelect.options).some(opt => opt.value === saved.model)) {
-            modelSelect.value = saved.model;
+      if (sizeSelect || modelSelect) {
+        savedSelections.set(k, {
+          size: sizeSelect ? sizeSelect.value : "",
+          model: modelSelect ? modelSelect.value : ""
+        });
+      }
+    });
+  };
+
+  saveSection(MANDATORY_EQUIPMENTS, "m");
+  saveSection(OPTIONAL_EQUIPMENTS, "o");
+
+  // 2. Régénération intégrale des deux sections de grille
+  renderGridSection(MANDATORY_EQUIPMENTS, "grid-mandatory-body", true);
+  renderGridSection(OPTIONAL_EQUIPMENTS, "grid-optional-body", false);
+
+  // 3. Restauration Globale des choix
+  const restoreSection = (list, prefix) => {
+    list.forEach((eqConfig, index) => {
+      const k = `${prefix}_${index}`;
+      const saved = savedSelections.get(k);
+
+      if (saved && saved.size) {
+        const sizeSelect = document.getElementById(`grid-size-${k}`);
+        if (sizeSelect && Array.from(sizeSelect.options).some(opt => opt.value === saved.size)) {
+          sizeSelect.value = saved.size;
+          
+          // Met à jour la liste déroulante des modèles correspondant à cette taille
+          onSizeChange(k, eqConfig.type);
+
+          // Réapplique le modèle s'il existe toujours dans les options générées
+          if (saved.model) {
+            const modelSelect = document.getElementById(`grid-model-${k}`);
+            if (modelSelect && Array.from(modelSelect.options).some(opt => opt.value === saved.model)) {
+              modelSelect.value = saved.model;
+            }
           }
         }
       }
-    }
-  });
+    });
+  };
 
-  // 4. Recalcul du compteur d'équipements obligatoires
+  restoreSection(MANDATORY_EQUIPMENTS, "m");
+  restoreSection(OPTIONAL_EQUIPMENTS, "o");
+
+  // 4. Recalcul de l'indicateur d'état complet
   updateMandatoryCounter();
 }
 
@@ -425,7 +417,6 @@ function populateSizesFirst(key, type, stockItems) {
     }
   });
 
-  // Tri des tailles selon les règles YT -> JR -> SR / Numérique / XS -> XL
   const sortedEntries = Array.from(uniqueSizeMap.entries()).sort(([valA], [valB]) => {
     return sortSizes(valA, valB, type);
   });
@@ -518,7 +509,6 @@ async function assignAllEquipment(e) {
       const selectedModel = modelSelect.value;
       const selectedSize = sizeSelect.value;
 
-      // On trouve le matériel disponible
       const itemToAssign = allInventoryCache.find(eq => {
         const itemModel = `${eq.marque || ''} ${eq.modele || ''}`.trim();
         return eq.type === itemConfig.type &&
@@ -528,13 +518,11 @@ async function assignAllEquipment(e) {
       });
 
       if (itemToAssign) {
-        // Marquage immédiat dans l'objet local pour ne pas ré-attribuer le même article
         itemToAssign.statut = "attribue";
 
         const eqRef = db.collection("equipment").doc(itemToAssign.id);
         batch.update(eqRef, { statut: "attribue" });
 
-        // Récupération du bénévole connecté
         const user = firebase.auth().currentUser;
         const benevoleEmail = user ? user.email : "Inconnu";
         const benevoleName = user ? (user.displayName || user.email) : "Inconnu";
@@ -542,16 +530,13 @@ async function assignAllEquipment(e) {
         const loanRef = db.collection("loans").doc(); 
         batch.set(loanRef, { 
           adhId: currentAdherentC2.id, 
-          // --- Ajout des infos lisibles de l'adhérent --- 
           adhNom: currentAdherentC2.nom || "", 
           adhPrenom: currentAdherentC2.prenom || "", 
           adhCategorie: currentAdherentC2.categorie || "", 
           
-          // --- Traçabilité Bénévole / Opérateur ---
           benevoleEmail: benevoleEmail,
           benevoleName: benevoleName,
 
-          // --- Équipement déjà lisible --- 
           eqId: itemToAssign.id, 
           type: itemToAssign.type, 
           marque: itemToAssign.marque || "", 
@@ -592,14 +577,12 @@ async function returnEquipment(loanId, equipmentId) {
 
   const batch = db.batch();
 
-  // 1. Mettre à jour le prêt dans la collection "loans"
   const loanRef = db.collection("loans").doc(loanId);
   batch.update(loanRef, {
     statut: "restitue",
     dateRestitution: firebase.firestore.FieldValue.serverTimestamp()
   });
 
-  // 2. Remettre l'équipement en stock dans la collection "equipment"
   if (equipmentId) {
     const eqRef = db.collection("equipment").doc(equipmentId);
     batch.update(eqRef, {
@@ -610,7 +593,6 @@ async function returnEquipment(loanId, equipmentId) {
   try {
     await batch.commit();
 
-    // 3. Mettre à jour les vues locales
     await loadInventory();
     renderStockSummaryBandeau();
     renderGridSection(MANDATORY_EQUIPMENTS, "grid-mandatory-body", true);
@@ -634,7 +616,6 @@ async function closeRemiseSession() {
 
     alert(`Session clôturée pour ${currentAdherentC2.nom || ''} ${currentAdherentC2.prenom || ''}. Statut passé à "Équipé".`);
     
-    // Nettoyage de l'écoute Firestore
     if (unsubscribeAssignedEquipment) {
       unsubscribeAssignedEquipment();
       unsubscribeAssignedEquipment = null;
