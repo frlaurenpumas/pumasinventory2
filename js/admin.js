@@ -187,7 +187,7 @@ async function exportInventoryCSV() {
       }
     });
 
-    // 2. Construction des lignes pour le CSV (avec ID, Etat et Provenance)
+    // 2. Construction des lignes pour le CSV (sans État, avec Bénévole)
     const data = eqSnapshot.docs.map(doc => {
       const d = doc.data();
       const isAttribue = d.statut === "attribue";
@@ -207,10 +207,10 @@ async function exportInventoryCSV() {
         "Modèle": d.modele || "",
         "Taille": d.taille || "",
         "Taille Max (cm)": d.tailleMax || "",
-        "État": d.etat || "",                      // Champ réassort
-        "Provenance": d.provenance || "",          // Champ réassort
+        "Provenance": d.provenance || "",
         "Statut": d.statut || "en_stock",
-        "Email Contact": emailContact
+        "Email Contact": emailContact,
+        "Ajouté par (Bénévole)": d.createdByName || d.createdByEmail || ""
       };
     });
 
