@@ -17,26 +17,119 @@ body {
   color: var(--text);
 }
 
+/* --- RECONSTRUCTION HEADER --- */
 header {
   background-color: var(--primary);
   color: white;
-  padding: 1rem 2rem;
+  padding: 0.75rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-header h1 { margin: 0 0 1rem 0; font-size: 1.5rem; }
+header h1 { 
+  margin: 0; 
+  font-size: 1.25rem; 
+  white-space: nowrap;
+}
 
-.tabs { display: flex; gap: 0.5rem; }
+.tabs { 
+  display: flex; 
+  gap: 0.4rem; 
+}
+
 .tab-btn {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.12);
   border: none;
   color: white;
-  padding: 0.6rem 1.2rem;
-  border-radius: 6px 6px 0 0;
+  padding: 0.55rem 1rem;
+  border-radius: 6px;
   cursor: pointer;
   font-weight: 500;
+  transition: background 0.2s ease, color 0.2s ease;
 }
-.tab-btn.active { background: var(--bg); color: var(--primary); font-weight: bold; }
 
+.tab-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.tab-btn.active { 
+  background: var(--bg); 
+  color: var(--primary); 
+  font-weight: bold; 
+}
+
+/* --- MENU BENEVOLE DÉROULANT --- */
+.user-menu-container {
+  position: relative;
+}
+
+.user-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: rgba(255, 255, 255, 0.15);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  color: #ffffff;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.user-badge:hover {
+  background-color: rgba(255, 255, 255, 0.25);
+}
+
+.user-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  background-color: var(--card-bg);
+  color: var(--text);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  min-width: 190px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+}
+
+.user-dropdown.hidden {
+  display: none;
+}
+
+.dropdown-btn {
+  background: none;
+  border: none;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  width: 100%;
+  transition: background-color 0.15s ease;
+}
+
+.dropdown-btn:hover {
+  background-color: #f1f5f9;
+}
+
+.dropdown-btn.text-danger {
+  color: var(--danger);
+}
+
+.dropdown-btn.text-danger:hover {
+  background-color: #fee2e2;
+}
+
+/* --- LAYOUT GLOBAL & PAGES --- */
 main { padding: 2rem; max-width: 1200px; margin: 0 auto; }
 
 .tab-content { display: none; }
@@ -50,17 +143,6 @@ main { padding: 2rem; max-width: 1200px; margin: 0 auto; }
   margin-bottom: 1.5rem;
 }
 
-.user-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background-color: #e2e8f0;
-  padding: 6px 12px;
-  border-radius: 4px;
-  font-size: 14px;
-  color: #1e293b;
-}
-                                                    
 .form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -75,6 +157,7 @@ main { padding: 2rem; max-width: 1200px; margin: 0 auto; }
   border-radius: 4px;
 }
 
+/* --- BOUTONS --- */
 .btn {
   padding: 0.6rem 1.2rem;
   border: none;
@@ -86,6 +169,44 @@ main { padding: 2rem; max-width: 1200px; margin: 0 auto; }
 .btn-secondary { background: #64748b; color: white; }
 .btn-success { background: var(--success); color: white; }
 .btn-danger { background: var(--danger); color: white; padding: 0.3rem 0.6rem; font-size: 0.8rem; }
+
+.form-actions {
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* --- RETOURS ET FEEDBACKS (MODULE REASSORT) --- */
+.feedback-msg {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  display: none;
+}
+
+.feedback-msg:not(:empty) {
+  display: block;
+}
+
+.feedback-msg.info {
+  background-color: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
+.feedback-msg.success {
+  background-color: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.feedback-msg.danger {
+  background-color: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
 
 .mt-1 { margin-top: 0.5rem; }
 .mt-2 { margin-top: 1rem; }
@@ -110,7 +231,7 @@ main { padding: 2rem; max-width: 1200px; margin: 0 auto; }
 }
 .autocomplete-list li:hover { background: #f1f5f9; }
 
-/* --- CONTENEUR TABLEAU AVEC DÉFILEMENT (NOUVEAU) --- */
+/* --- CONTENEUR TABLEAU AVEC DÉFILEMENT --- */
 .table-container {
   max-height: 420px;
   overflow-y: auto;
@@ -119,7 +240,6 @@ main { padding: 2rem; max-width: 1200px; margin: 0 auto; }
   background: #fff;
 }
 
-/* Fixe le header du tableau lors du défilement */
 .table-container .data-table th {
   position: sticky;
   top: 0;
@@ -132,7 +252,6 @@ main { padding: 2rem; max-width: 1200px; margin: 0 auto; }
 .data-table th, .data-table td { padding: 0.6rem; text-align: left; border-bottom: 1px solid var(--border); }
 .data-table th { font-size: 0.85rem; }
 
-/* Effet visuel au survol et clic sur la liste des adhérents */
 #c1-adherents-list-body tr {
   cursor: pointer;
   transition: background-color 0.15s ease-in-out;
@@ -141,10 +260,9 @@ main { padding: 2rem; max-width: 1200px; margin: 0 auto; }
   background-color: #eff6ff;
 }
 
-/* Comptoir 2 Layout */
+/* COMPTOIR 2 LAYOUT */
 .comptoir2-layout { display: grid; grid-template-columns: 300px 1fr; gap: 1.5rem; }
 
-/* Défilement sur la file d'attente C2 si beaucoup d'adhérents */
 .queue-list { 
   list-style: none; 
   padding: 0; 
