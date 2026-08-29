@@ -22,7 +22,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 /**
- * Affiche / Masque le menu déroulant du profil utilisateur
+ * ZONE profil utilisateur
  */
 function toggleUserDropdown() {
   const dropdown = document.getElementById("user-dropdown");
@@ -45,6 +45,29 @@ window.addEventListener("click", (e) => {
     }
   }
 });
+
+
+function logout() {
+  firebase.auth().signOut()
+    .then(() => {
+      console.log("Déconnexion réussie");
+      window.location.reload();
+    })
+    .catch((error) => console.error("Erreur déconnexion :", error));
+}
+
+function resetPasswordOnDemand() {
+  const user = firebase.auth().currentUser;
+  if (user && user.email) {
+    firebase.auth().sendPasswordResetEmail(user.email)
+      .then(() => alert(`Un e-mail de réinitialisation a été envoyé à ${user.email}`))
+      .catch((err) => alert("Erreur lors de l'envoi de l'e-mail : " + err.message));
+  }
+}
+
+// Attachement au scope global pour les clics HTML
+window.logout = logout;
+window.resetPasswordOnDemand = resetPasswordOnDemand;
 
 // --- GESTION DES ONGLETS ---
 function switchTab(tabId, targetBtn) {
