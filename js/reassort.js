@@ -61,8 +61,9 @@ async function handleAddSingleEquipment(event) {
   const etatVal = document.getElementById("eq-etat")?.value || "Bon état";
   const provenanceVal = document.getElementById("eq-provenance")?.value || "Achat";
 
-  // 2. Vérification préventive pour tailleMax
+  // 2. Vérification préventive pour tailleMax (strictement limitée aux équipements concernés)
   const needsTailleMax = ["Casque", "Plastron", "Coudières", "Culotte", "Jambières", "Crosse"].includes(typeVal);
+  
   if (needsTailleMax && (parsedTailleMax === null || isNaN(parsedTailleMax))) {
     const confirmNoMax = confirm(
       `Attention : Vous n'avez pas renseigné la "Taille MAX (cm)" pour cet équipement (${typeVal}).\n\nSans cette valeur, il ne pourra pas être recommandé automatiquement au comptoir. Voulez-vous enregistrer quand même ?`
