@@ -93,9 +93,11 @@ function importInventoryCSV() {
             const modeleVal = row["Modèle"] || row["Modele"] || row["modele"] || "";
             const tailleVal = row["Taille"] || row["taille"] || "";
             const tailleEnfantVal = row["Taille enfant"] || row["Taille Enfant"] || row["tailleEnfant"] || "";
-            const etatVal = row["État"] || row["Etat"] || row["etat"] || "Bon état";
             const provenanceVal = row["Provenance"] || row["provenance"] || "Import CSV";
             const statutVal = row["Statut"] || row["statut"] || "en_stock";
+            
+            // Nouveau : Récupération du bénévole créateur
+            const benevoleVal = row["Ajouté par (Bénévole)"] || row["Bénévole"] || row["Benevole"] || row["createdByName"] || row["createdByEmail"] || "";
 
             // Conversion Taille Max
             const rawTailleMax = row["Taille Max (cm)"] || row["Taille Max"] || row["Taille MAX"] || row["tailleMax"] || row["taille_max"] || "";
@@ -106,18 +108,25 @@ function importInventoryCSV() {
               ? db.collection("equipment").doc(docId.trim()) 
               : db.collection("equipment").doc();
 
-            batch.set(docRef, {
+            // Objet de données à sauvegarder
+            const equipmentData = {
               type: typeVal.trim(),
               marque: marqueVal.trim(),
               modele: modeleVal.trim(),
               taille: tailleVal.trim(),
               tailleEnfant: tailleEnfantVal.trim(),
               tailleMax: parsedTailleMax !== null && !isNaN(parsedTailleMax) ? parsedTailleMax : null,
-              etat: etatVal.trim(),
               provenance: provenanceVal.trim(),
               statut: statutVal.trim(),
               importedAt: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true }); // merge: true préserve les champs non mentionnés si le doc existe
+            };
+
+            // Ajout conditionnel du nom du bénévole s'il est présent dans le CSV
+            if (benevoleVal.trim() !== "") {
+              equipmentData.createdByName = benevoleVal.trim();
+            }
+
+            batch.set(docRef, equipmentData, { merge: true }); // merge: true préserve les champs existants non mentionnés
           });
 
           await batch.commit();
@@ -139,6 +148,9 @@ function importInventoryCSV() {
     }
   });
 }
+
+// Attachement au scope global pour le HTML
+window.importInventoryCSV = importInventoryCSV;
 
 // Attachement au scope global pour le HTML
 window.importInventoryCSV = importInventoryCSV;
