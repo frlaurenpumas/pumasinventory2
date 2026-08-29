@@ -306,7 +306,10 @@ function renderGridSection(equipmentList, containerId, isMandatory) {
     const isOverridden = overrideFilterMap.get(key) || false;
     const measureStr = getFormattedMeasure(eqConfig.type, currentAdherentC2);
     
-    const allInStock = (allInventoryCache || []).filter(item => item.type === eqConfig.type && item.statut === "en_stock");
+    const allInStock = (allInventoryCache || []).filter(item => 
+    String(item.type || "").trim().toLowerCase() === String(eqConfig.type || "").trim().toLowerCase() && 
+    item.statut === "en_stock"
+  );
     const suggestedStock = filterInventoryByRule(eqConfig.type, allInStock, currentAdherentC2);
     
     const activeStock = isOverridden ? allInStock : (suggestedStock.length > 0 ? suggestedStock : allInStock);
