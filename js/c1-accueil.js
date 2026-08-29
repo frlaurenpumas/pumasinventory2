@@ -39,6 +39,24 @@ function calculateCategory(dobString) {
   return cat;
 }
 
+/**
+ * Remplissage dynamique des options de pointure (du 28 au 45)
+ */
+function populatePointureOptions() {
+  const select = document.getElementById("adh-pointure");
+  if (!select) return;
+  
+  // Vider les anciennes options pour éviter les doublons au réappel
+  select.innerHTML = '<option value="">-- Choisir --</option>';
+  
+  for (let i = 28; i <= 45; i++) {
+    const opt = document.createElement("option");
+    opt.value = i;
+    opt.textContent = i;
+    select.appendChild(opt);
+  }
+}
+
 async function onSearchAdherent(query) {
   const listEl = document.getElementById("c1-search-results");
   listEl.innerHTML = "";
