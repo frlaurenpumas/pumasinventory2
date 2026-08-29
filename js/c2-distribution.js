@@ -191,53 +191,66 @@ function sortSizes(sizeA, sizeB, type) {
 }
 
 function filterInventoryByRule(type, items, adh) {
+  if (!items || items.length === 0) return [];
   if (!adh) return items;
 
+  // Normalisation du type (ex: "Sac " -> "SAC")
+  const cleanType = String(type || "").trim().toUpperCase();
   const adhTete = Number(adh.tourTeteCm || adh.tailleTeteCm) || 0;
   const adhTaille = Number(adh.tailleCm) || 0;
 
-  switch (type) {
-    case "Casque": {
+  let result = items;
+
+  switch (cleanType) {
+    case "CASQUE": {
       if (!adhTete) return items;
       const rec = getRecommendedHelmetSize(adhTete);
-      return items.filter(i => {
+      result = items.filter(i => {
         const itemTailleStr = String(i.taille || "").toUpperCase().trim();
         const itemTailleMax = Number(i.tailleMax) || 0;
         return itemTailleStr === rec.code || itemTailleMax === rec.max;
       });
+      break;
     }
 
-    case "Plastron":
-    case "Coudières":
-    case "Culotte":
-    case "Jambières":
-    case "Crosse": {
+    case "PLASTRON":
+    case "COUDIÈRES":
+    case "COUDIERES":
+    case "CULOTTE":
+    case "JAMBIÈRES":
+    case "JAMBIERES":
+    case "CROSSE": {
       if (!adhTaille) return items;
       const targetSize = Math.ceil((adhTaille + 3) / 10) * 10;
-      return items.filter(i => Number(i.tailleMax) === targetSize);
+      result = items.filter(i => Number(i.tailleMax) === targetSize);
+      break;
     }
 
-    case "Gants": {
+    case "GANTS": {
       if (!adh.tailleMainInch) return items;
-      return items.filter(item => {
+      result = items.filter(item => {
         if (item.tailleMainInch) return String(item.tailleMainInch).trim() === String(adh.tailleMainInch).trim();
         return String(item.taille || "").includes(String(adh.tailleMainInch));
       });
+      break;
     }
 
-    case "Patins": {
+    case "PATINS": {
       if (!adh.pointure) return items;
-      return items.filter(item => {
+      result = items.filter(item => {
         if (item.pointure) return String(item.pointure).trim() === String(adh.pointure).trim();
         return String(item.taille || "").trim() === String(adh.pointure).trim();
       });
+      break;
     }
 
-    case "Maillot":
-    case "Sac":
     default:
+      // Pour tous les équipements facultatifs (Sac, Maillot, Gourde, etc.)
       return items;
   }
+
+  // Sécurité : si le filtrage par mesure donne 0 résultat, on renvoie tout le stock de ce type
+  return result.length > 0 ? result : items;
 }
 
 function getRecommendedHelmetSize(tourTeteCm) {
