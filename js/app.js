@@ -1111,7 +1111,6 @@ const data = loansSnapshot.docs.map(doc => {
         "Statut": d.statut || "",
         "Date Remise": dateRemise,
         "Date Restitution": dateRestitution,
-        "Bénévole (Nom)": benevoleNom,
         "Bénévole (Email)": benevoleEmail,
         "ID Adhérent (Technique)": d.adhId || "",
         "ID Équipement (Technique)": d.eqId || ""
