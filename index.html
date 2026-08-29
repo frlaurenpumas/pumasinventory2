@@ -7,21 +7,28 @@
   <link rel="stylesheet" href="css/styles.css">
   <link rel="icon" href="data:,">
   
-  <!-- Firebase SDKs (Toutes en version 9.23.0 - Compat) -->
+  <!-- Firebase SDKs (v9 Compat) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-  
-  <!-- Configuration Firebase -->
-  <script src="js/firebase-config.js"></script>
-  <!-- Variables globales -->
-  <script src="js/state.js"></script>
 
   <!-- PapaParse CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
-  <!-- Scripts applicatifs (déplacés avec defer pour charger après le DOM) -->
+  <!-- 1. Config Firebase & État global (chargés immédiatement) -->
+  <script src="js/firebase-config.js" defer></script>
+  <script src="js/state.js" defer></script>
+
+  <!-- 2. Authentification -->
   <script src="js/auth.js" defer></script>
+
+  <!-- 3. Modules Métiers -->
+  <script src="js/c1-accueil.js" defer></script>
+  <script src="js/c2-distribution.js" defer></script>
+  <script src="js/reassort.js" defer></script>
+  <script src="js/admin.js" defer></script>
+
+  <!-- 4. Orchestrateur principal (toujours en dernier) -->
   <script src="js/app.js" defer></script>
 </head>
 <body>
