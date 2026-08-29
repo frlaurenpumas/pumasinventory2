@@ -37,14 +37,14 @@
   <div class="header-brand">
     <h1>🏒 Matériel Hockey</h1>
   </div>
-
-  <nav class="tabs-nav">
-    <button class="tab-btn active" onclick="switchTab('comptoir1', event)">1er Comptoir</button>
-    <button class="tab-btn" onclick="switchTab('comptoir2', event)">2ème Comptoir</button>
-    <button class="tab-btn" onclick="switchTab('reassort', event)">➕ Réassort</button>
-    <button class="tab-btn" onclick="switchTab('admin', event)">Admin / Export</button>
-  </nav>
-
+    
+    <nav class="tabs-nav">
+      <button class="tab-btn active" data-tab="comptoir1">1er Comptoir</button>
+      <button class="tab-btn" data-tab="comptoir2">2ème Comptoir</button>
+      <button class="tab-btn" data-tab="reassort">➕ Réassort</button>
+      <button class="tab-btn" data-tab="admin">Admin / Export</button>
+    </nav>
+  
   <div class="user-menu-container">
     <div class="user-badge" onclick="toggleUserDropdown()">
       👤 <span id="user-display-name">Chargement...</span> ▾
