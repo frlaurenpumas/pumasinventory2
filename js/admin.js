@@ -68,41 +68,80 @@ function importInventoryCSV() {
     skipEmptyLines: true,
     transformHeader: (h) => h.trim(),
     complete: async (results) => {
-      const batch = db.batch();
+      const rows = results.data;
+      if (!rows || rows.length === 0) {
+        return alert("Le fichier CSV est vide.");
+      }
 
-      results.data.forEach(row => {
-        const typeVal = row["Type équipement"] || row["Type equipement"] || row["Type"] || row["type"] || "";
-        const marqueVal = row["Marque"] || row["marque"] || "";
-        const modeleVal = row["Modèle"] || row["Modele"] || row["modele"] || "";
-        const tailleVal = row["Taille"] || row["taille"] || "";
-        const tailleEnfantVal = row["Taille enfant"] || row["Taille Enfant"] || row["tailleEnfant"] || "";
+      console.log(`[DEBUG] Début de l'import de ${rows.length} équipements...`);
+
+      try {
+        // Découpage par paquets de 400 pour respecter la limite de 500 opérations par batch Firestore
+        const BATCH_SIZE = 400;
         
-        // Gestion de Taille Max (conversion numérique)
-        const rawTailleMax = row["Taille Max (cm)"] || row["Taille Max"] || row["Taille MAX"] || row["tailleMax"] || row["taille_max"] || "";
-        const parsedTailleMax = rawTailleMax !== "" ? Number(rawTailleMax) : null;
+        for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+          const chunk = rows.slice(i, i + BATCH_SIZE);
+          const batch = db.batch();
 
-        const docRef = db.collection("equipment").doc();
-        batch.set(docRef, {
-          type: typeVal.trim(),
-          marque: marqueVal.trim(),
-          modele: modeleVal.trim(),
-          taille: tailleVal.trim(),
-          tailleEnfant: tailleEnfantVal.trim(),
-          tailleMax: parsedTailleMax !== null && !isNaN(parsedTailleMax) ? parsedTailleMax : null,
-          statut: "en_stock",
-          importedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-      });
+          chunk.forEach(row => {
+            // 1. Détection de l'ID d'origine (si réimport d'un export)
+            const docId = row["ID"] || row["id"] || row["docId"] || "";
 
-      await batch.commit();
-      alert(`Importation réussie : ${results.data.length} équipements ajoutés.`);
-      
-      if (typeof loadInventory === "function") {
-        await loadInventory();
+            // 2. Mappage des champs avec tolérance sur les entêtes
+            const typeVal = row["Type équipement"] || row["Type equipement"] || row["Type"] || row["type"] || "";
+            const marqueVal = row["Marque"] || row["marque"] || "";
+            const modeleVal = row["Modèle"] || row["Modele"] || row["modele"] || "";
+            const tailleVal = row["Taille"] || row["taille"] || "";
+            const tailleEnfantVal = row["Taille enfant"] || row["Taille Enfant"] || row["tailleEnfant"] || "";
+            const etatVal = row["État"] || row["Etat"] || row["etat"] || "Bon état";
+            const provenanceVal = row["Provenance"] || row["provenance"] || "Import CSV";
+            const statutVal = row["Statut"] || row["statut"] || "en_stock";
+
+            // Conversion Taille Max
+            const rawTailleMax = row["Taille Max (cm)"] || row["Taille Max"] || row["Taille MAX"] || row["tailleMax"] || row["taille_max"] || "";
+            const parsedTailleMax = rawTailleMax !== "" ? Number(rawTailleMax) : null;
+
+            // Réutilisation de l'ID existant ou génération d'un nouveau
+            const docRef = docId.trim() !== "" 
+              ? db.collection("equipment").doc(docId.trim()) 
+              : db.collection("equipment").doc();
+
+            batch.set(docRef, {
+              type: typeVal.trim(),
+              marque: marqueVal.trim(),
+              modele: modeleVal.trim(),
+              taille: tailleVal.trim(),
+              tailleEnfant: tailleEnfantVal.trim(),
+              tailleMax: parsedTailleMax !== null && !isNaN(parsedTailleMax) ? parsedTailleMax : null,
+              etat: etatVal.trim(),
+              provenance: provenanceVal.trim(),
+              statut: statutVal.trim(),
+              importedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true }); // merge: true préserve les champs non mentionnés si le doc existe
+          });
+
+          await batch.commit();
+        }
+
+        alert(`✅ Importation réussie : ${rows.length} équipements traités.`);
+        
+        // Réinitialisation du champ file
+        fileInput.value = "";
+
+        if (typeof loadInventory === "function") {
+          await loadInventory();
+        }
+
+      } catch (error) {
+        console.error("Erreur lors de l'importation batch :", error);
+        alert("Erreur lors de l'importation : " + error.message);
       }
     }
   });
 }
+
+// Attachement au scope global pour le HTML
+window.importInventoryCSV = importInventoryCSV;
 
 async function exportAdherentsCSV() {
   const snapshot = await db.collection("adherents").get();
@@ -148,7 +187,7 @@ async function exportInventoryCSV() {
       }
     });
 
-    // 2. Construction des lignes pour le CSV
+    // 2. Construction des lignes pour le CSV (avec ID, Etat et Provenance)
     const data = eqSnapshot.docs.map(doc => {
       const d = doc.data();
       const isAttribue = d.statut === "attribue";
@@ -162,11 +201,14 @@ async function exportInventoryCSV() {
       }
 
       return {
+        "ID": doc.id,                             // Important pour la réimportation
         "Type": d.type || "",
         "Marque": d.marque || "",
         "Modèle": d.modele || "",
         "Taille": d.taille || "",
         "Taille Max (cm)": d.tailleMax || "",
+        "État": d.etat || "",                      // Champ réassort
+        "Provenance": d.provenance || "",          // Champ réassort
         "Statut": d.statut || "en_stock",
         "Email Contact": emailContact
       };
@@ -178,13 +220,35 @@ async function exportInventoryCSV() {
     const timeStr = `${String(now.getHours()).padStart(2, "0")}h${String(now.getMinutes()).padStart(2, "0")}`;
     const filename = `export_inventaire_materiel_${dateStr}_${timeStr}.csv`;
 
+    // Appel du téléchargeur PapaParse
     downloadCSV(data, filename);
   } catch (error) {
     console.error("Erreur lors de l'export de l'inventaire :", error);
-    alert("Impossible d'exporter l'inventaire.");
+    alert("Impossible d'exporter l'inventaire : " + error.message);
   }
 }
 
+// Fonction utilitaire de téléchargement CSV avec PapaParse
+function downloadCSV(data, filename) {
+  if (!data || !data.length) {
+    alert("Aucune donnée à exporter.");
+    return;
+  }
+  
+  const csv = Papa.unparse(data, { delimiter: ";" });
+  const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  
+  link.setAttribute("href", url);
+  link.setAttribute("download", filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+// Export au scope global
+window.exportInventoryCSV = exportInventoryCSV;
 async function exportLoansCSV() {
   try {
     const [loansSnapshot, adhSnapshot] = await Promise.all([
