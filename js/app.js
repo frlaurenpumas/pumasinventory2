@@ -1,15 +1,24 @@
 // Initialisation au chargement de la page
 document.addEventListener("DOMContentLoaded", () => {
   console.log("[DEBUG] Application initialisée.");
-  
-  const searchInput = document.getElementById("c1-search");
-  if (searchInput) {
-    searchInput.value = "";
+
+  // Navigation onglets
+  document.querySelectorAll(".tab-btn[data-tab]").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      const tabId = e.currentTarget.getAttribute("data-tab");
+      switchTab(tabId, e.currentTarget);
+    });
+  });
+
+  // Appels sécurisés des modules métiers
+  if (typeof populatePointureOptions === "function") {
+    populatePointureOptions();
+  } else {
+    console.warn("[WARN] populatePointureOptions n'est pas encore accessible.");
   }
 
-  populatePointureOptions();
-  listenToQueueC2();
-  loadAllAdherentsC1();
+  if (typeof listenToQueueC2 === "function") listenToQueueC2();
+  if (typeof loadAllAdherentsC1 === "function") loadAllAdherentsC1();
 });
 
 // --- GESTION DES ONGLETS ---
