@@ -21,6 +21,32 @@ document.addEventListener("DOMContentLoaded", () => {
   if (typeof loadAllAdherentsC1 === "function") loadAllAdherentsC1();
 });
 
+/**
+ * Affiche / Masque le menu déroulant du profil utilisateur
+ */
+function toggleUserDropdown() {
+  const dropdown = document.getElementById("user-dropdown"); // ou le dynamic-ID de ton menu
+  if (dropdown) {
+    dropdown.classList.toggle("show");
+  }
+}
+
+// Rendre la fonction accessible depuis les attributs HTML onclick
+window.toggleUserDropdown = toggleUserDropdown;
+
+// Optionnel : Fermer le menu si l'utilisateur clique en dehors
+window.addEventListener("click", (event) => {
+  if (!event.target.matches('.user-profile-btn') && !event.target.closest('.user-profile-btn')) {
+    const dropdowns = document.getElementsByClassName("user-dropdown-content");
+    for (let i = 0; i < dropdowns.length; i++) {
+      const openDropdown = dropdowns[i];
+      if (openDropdown.classList.contains('show')) {
+        openDropdown.classList.remove('show');
+      }
+    }
+  }
+});
+
 // --- GESTION DES ONGLETS ---
 function switchTab(tabId, targetBtn) {
   console.log(`[DEBUG] Navigation vers l'onglet : ${tabId}`);
