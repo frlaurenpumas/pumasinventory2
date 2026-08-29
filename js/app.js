@@ -25,8 +25,11 @@ document.addEventListener("DOMContentLoaded", () => {
 function switchTab(tabId, targetBtn) {
   console.log(`[DEBUG] Navigation vers l'onglet : ${tabId}`);
   
-  // Masquer toutes les sections
-  document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
+  // 1. Masquer tous les onglets et nettoyer le style en ligne
+  document.querySelectorAll(".tab-content").forEach(el => {
+    el.classList.remove("active");
+    el.style.display = ""; // Supprime le "display: none" écrit en dur dans le HTML
+  });
   
   // Désactiver tous les boutons d'onglets
   document.querySelectorAll(".tab-btn").forEach(el => el.classList.remove("active"));
