@@ -1,4 +1,4 @@
-// Variable d'état globale
+/* Variable d'état globale
 // let currentAdherentC2 = null;
 // let allInventoryCache = [];
 // let assignedEquipmentCache = [];
@@ -19,6 +19,7 @@ const OPTIONAL_EQUIPMENTS = [
   { type: "Maillot", label: "Maillot" },
   { type: "Sac", label: "Sac" }
 ];
+*/
 
 // Initialisation au chargement de la page
 document.addEventListener("DOMContentLoaded", () => {
