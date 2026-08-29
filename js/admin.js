@@ -76,7 +76,6 @@ function importInventoryCSV() {
       console.log(`[DEBUG] Début de l'import de ${rows.length} équipements...`);
 
       try {
-        // Découpage par paquets de 400 pour respecter la limite de 500 opérations par batch Firestore
         const BATCH_SIZE = 400;
         
         for (let i = 0; i < rows.length; i += BATCH_SIZE) {
@@ -84,20 +83,22 @@ function importInventoryCSV() {
           const batch = db.batch();
 
           chunk.forEach(row => {
-            // 1. Détection de l'ID d'origine (si réimport d'un export)
+            // 1. Détection de l'ID d'origine
             const docId = row["ID"] || row["id"] || row["docId"] || "";
 
-            // 2. Mappage des champs avec tolérance sur les entêtes
-            const typeVal = row["Type équipement"] || row["Type equipement"] || row["Type"] || row["type"] || "";
+            // 2. Mappage des champs demandés
+            const typeVal = row["Equipement"] || row["Équipement"] || row["Type équipement"] || row["Type equipement"] || row["Type"] || row["type"] || "";
             const marqueVal = row["Marque"] || row["marque"] || "";
             const modeleVal = row["Modèle"] || row["Modele"] || row["modele"] || "";
             const tailleVal = row["Taille"] || row["taille"] || "";
-            const tailleEnfantVal = row["Taille enfant"] || row["Taille Enfant"] || row["tailleEnfant"] || "";
+            
+            // Taille selon constructeur / Taille Enfant
+            const tailleConstructeurVal = row["Taille (selon constructeur)"] || row["Taille constructeur"] || row["Taille enfant"] || row["Taille Enfant"] || row["tailleEnfant"] || "";
+            
             const provenanceVal = row["Provenance"] || row["provenance"] || "Import CSV";
             const statutVal = row["Statut"] || row["statut"] || "en_stock";
-            
-            // Nouveau : Récupération du bénévole créateur
-            const benevoleVal = row["Ajouté par (Bénévole)"] || row["Bénévole"] || row["Benevole"] || row["createdByName"] || row["createdByEmail"] || "";
+            const emailContactVal = row["Email Contact"] || row["Email contact"] || row["emailContact"] || "";
+            const benevoleVal = row["Ajouté par (Bénévole)"] || row["Ajouté par"] || row["Bénévole"] || row["createdByName"] || row["createdByEmail"] || "";
 
             // Conversion Taille Max
             const rawTailleMax = row["Taille Max (cm)"] || row["Taille Max"] || row["Taille MAX"] || row["tailleMax"] || row["taille_max"] || "";
@@ -108,25 +109,26 @@ function importInventoryCSV() {
               ? db.collection("equipment").doc(docId.trim()) 
               : db.collection("equipment").doc();
 
-            // Objet de données à sauvegarder
+            // Construction de l'objet Firestore
             const equipmentData = {
               type: typeVal.trim(),
               marque: marqueVal.trim(),
               modele: modeleVal.trim(),
               taille: tailleVal.trim(),
-              tailleEnfant: tailleEnfantVal.trim(),
+              tailleEnfant: tailleConstructeurVal.trim(), // Stocke la taille constructeur / enfant
               tailleMax: parsedTailleMax !== null && !isNaN(parsedTailleMax) ? parsedTailleMax : null,
               provenance: provenanceVal.trim(),
               statut: statutVal.trim(),
+              emailContact: emailContactVal.trim(),
               importedAt: firebase.firestore.FieldValue.serverTimestamp()
             };
 
-            // Ajout conditionnel du nom du bénévole s'il est présent dans le CSV
+            // Ajout du nom du bénévole s'il est renseigné
             if (benevoleVal.trim() !== "") {
               equipmentData.createdByName = benevoleVal.trim();
             }
 
-            batch.set(docRef, equipmentData, { merge: true }); // merge: true préserve les champs existants non mentionnés
+            batch.set(docRef, equipmentData, { merge: true });
           });
 
           await batch.commit();
@@ -134,7 +136,6 @@ function importInventoryCSV() {
 
         alert(`✅ Importation réussie : ${rows.length} équipements traités.`);
         
-        // Réinitialisation du champ file
         fileInput.value = "";
 
         if (typeof loadInventory === "function") {
@@ -148,6 +149,8 @@ function importInventoryCSV() {
     }
   });
 }
+
+window.importInventoryCSV = importInventoryCSV;
 
 // Attachement au scope global pour le HTML
 window.importInventoryCSV = importInventoryCSV;
