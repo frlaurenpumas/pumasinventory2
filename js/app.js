@@ -1,7 +1,7 @@
 // Variable d'état globale
-let currentAdherentC2 = null;
-let allInventoryCache = [];
-let assignedEquipmentCache = [];
+// let currentAdherentC2 = null;
+// let allInventoryCache = [];
+// let assignedEquipmentCache = [];
 
 // Définition des 2 groupes d'équipements pour le Comptoir 2
 const MANDATORY_EQUIPMENTS = [
