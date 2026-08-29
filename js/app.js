@@ -25,24 +25,23 @@ document.addEventListener("DOMContentLoaded", () => {
  * Affiche / Masque le menu déroulant du profil utilisateur
  */
 function toggleUserDropdown() {
-  const dropdown = document.getElementById("user-dropdown"); // ou le dynamic-ID de ton menu
+  const dropdown = document.getElementById("user-dropdown");
   if (dropdown) {
-    dropdown.classList.toggle("show");
+    dropdown.classList.toggle("hidden");
   }
 }
 
-// Rendre la fonction accessible depuis les attributs HTML onclick
+// Rendre la fonction accessible depuis le HTML onclick
 window.toggleUserDropdown = toggleUserDropdown;
 
-// Optionnel : Fermer le menu si l'utilisateur clique en dehors
-window.addEventListener("click", (event) => {
-  if (!event.target.matches('.user-profile-btn') && !event.target.closest('.user-profile-btn')) {
-    const dropdowns = document.getElementsByClassName("user-dropdown-content");
-    for (let i = 0; i < dropdowns.length; i++) {
-      const openDropdown = dropdowns[i];
-      if (openDropdown.classList.contains('show')) {
-        openDropdown.classList.remove('show');
-      }
+/**
+ * Ferme le menu si l'utilisateur clique en dehors de la zone
+ */
+window.addEventListener("click", (e) => {
+  if (!e.target.closest(".user-menu-container")) {
+    const dropdown = document.getElementById("user-dropdown");
+    if (dropdown && !dropdown.classList.contains("hidden")) {
+      dropdown.classList.add("hidden");
     }
   }
 });
