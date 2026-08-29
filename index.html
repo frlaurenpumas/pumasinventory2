@@ -267,6 +267,75 @@
         </div>
       </div>
     </section>
+    
+        <!-- Vue/Onglet Réassort -->
+    <section id="reassort" class="tab-content" style="display: none;">
+      <h2>➕ Saisie & Réassort d'Équipement</h2>
+      
+      <div class="card form-container">
+        <h3>Ajouter un équipement isolé</h3>
+        <form id="add-equipment-form" onsubmit="handleAddSingleEquipment(event)">
+          
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="eq-type">Type d'équipement *</label>
+              <select id="eq-type" required>
+                <option value="">-- Choisir --</option>
+                <option value="Casque">Casque</option>
+                <option value="Jambières">Jambières</option>
+                <option value="Coudières">Coudières</option>
+                <option value="Épalières">Épalières</option>
+                <option value="Gants">Gants</option>
+                <option value="Culotte">Culotte</option>
+                <option value="Crosse">Crosse</option>
+    
+              </select>
+            </div>
+    
+            <div class="form-group">
+              <label for="eq-marque">Marque *</label>
+              <input type="text" id="eq-marque" placeholder="ex: Bauer, CCM..." required />
+            </div>
+    
+            <div class="form-group">
+              <label for="eq-modele">Modèle</label>
+              <input type="text" id="eq-modele" placeholder="ex: Vapor 3X" />
+            </div>
+    
+            <div class="form-group">
+              <label for="eq-taille">Taille *</label>
+              <input type="text" id="eq-taille" placeholder="ex: Sr M, Jr L, 14\" required />
+            </div>
+    
+            <div class="form-group">
+              <label for="eq-etat">État *</label>
+              <select id="eq-etat" required>
+                <option value="Neuf">Neuf</option>
+                <option value="Très bon état">Très bon état</option>
+                <option value="Bon état">Bon état</option>
+                <option value="État moyen">État moyen</option>
+              </select>
+            </div>
+    
+            <div class="form-group">
+              <label for="eq-provenance">Origine de l'entrée *</label>
+              <select id="eq-provenance" required>
+                <option value="Restitution tardive">Restitution tardive (ex-adhérent)</option>
+                <option value="Achat ponctuel">Achat ponctuel / Réassort</option>
+                <option value="Donation">Donation / Occasion</option>
+                <option value="Retrouvé en stock">Retrouvé en stock</option>
+              </select>
+            </div>
+          </div>
+    
+          <div class="form-actions">
+            <button type="submit" id="btn-save-eq" class="btn btn-primary"> Enregistrer l'équipement</button>
+          </div>
+          
+          <div id="reassort-feedback" class="feedback-msg"></div>
+        </form>
+      </div>
+    </section>
 
    
     <!-- ADMIN / CSV -->
