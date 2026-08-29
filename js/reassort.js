@@ -2,6 +2,44 @@
  * Module de gestion du Réassort et des Sorties d'inventaire
  */
 
+// js/reassort.js — Remplit le select d'équipement à partir de state.js
+
+function populateReassortEquipmentSelect() {
+  const select = document.getElementById("eq-type");
+  if (!select) return;
+
+  // Réinitialisation
+  select.innerHTML = '<option value="">-- Choisir --</option>';
+
+  // Groupe 1 : Obligatoires
+  const optGroupMandatory = document.createElement("optgroup");
+  optGroupMandatory.label = "Équipements obligatoires";
+
+  MANDATORY_EQUIPMENTS.forEach(item => {
+    const opt = document.createElement("option");
+    opt.value = item.type;
+    opt.textContent = item.label;
+    optGroupMandatory.appendChild(opt);
+  });
+  select.appendChild(optGroupMandatory);
+
+  // Groupe 2 : Optionnels
+  const optGroupOptional = document.createElement("optgroup");
+  optGroupOptional.label = "Équipements optionnels";
+
+  OPTIONAL_EQUIPMENTS.forEach(item => {
+    const opt = document.createElement("option");
+    opt.value = item.type;
+    opt.textContent = item.label;
+    optGroupOptional.appendChild(opt);
+  });
+  select.appendChild(optGroupOptional);
+}
+
+// Lancement au chargement du DOM
+document.addEventListener("DOMContentLoaded", populateReassortEquipmentSelect);
+
+
 // --- 1. ENTRÉE DE MATÉRIEL (Ajout unitaire) ---
 async function handleAddSingleEquipment(event) {
   event.preventDefault();
