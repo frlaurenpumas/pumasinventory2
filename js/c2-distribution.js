@@ -201,11 +201,7 @@ function sortSizes(sizeA, sizeB, type) {
 function filterInventoryByRule(type, items, adh) {
   if (!adh) return items;
 
-  const adhTaille = Number(adh.tailleCm) || 0;
-  const adhTete = Number(adh.tourTeteCm) || 0;
-
- function getFilteredItemsForAdherent(type, items, adh) {
-  const adhTete = Number(adh.tailleTeteCm) || 0;
+  const adhTete = Number(adh.tourTeteCm || adh.tailleTeteCm) || 0;
   const adhTaille = Number(adh.tailleCm) || 0;
 
   switch (type) {
