@@ -246,6 +246,57 @@ async function handleRemoveEquipment(event) {
   }
 }
 
+
+let parsedCSVData = [];
+
+// 1. Parsing avec les colonnes exactes : Equipement, Marque, Modèle, Taille, Taille constructeur, Taille Max
+function parseCSVContent(csvText) {
+  const lines = csvText.split(/\r\n|\n/);
+  const result = [];
+  if (lines.length < 2) return result;
+
+  // Détection automatique du séparateur (, ou ;)
+  const separator = lines[0].includes(";") ? ";" : ",";
+  
+  // Normalisation des en-têtes (minuscules sans espaces superflus)
+  const headers = lines[0].split(separator).map(h => h.trim().toLowerCase());
+
+  // Recherche des index de colonnes
+  const idxEquipement = headers.findIndex(h => h.includes("equipement") || h.includes("équipement") || h === "type");
+  const idxMarque = headers.findIndex(h => h.includes("marque"));
+  const idxModele = headers.findIndex(h => h.includes("modele") || h.includes("modèle"));
+  const idxTaille = headers.findIndex(h => h === "taille");
+  const idxTailleEnfant = headers.findIndex(h => h.includes("constructeur") || h.includes("enfant"));
+  const idxTailleMax = headers.findIndex(h => h.includes("max"));
+  const idxQuantite = headers.findIndex(h => h.includes("quantite") || h.includes("quantité") || h === "qte");
+
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+
+    const values = line.split(separator).map(v => v.trim());
+    
+    const typeVal = idxEquipement !== -1 ? values[idxEquipement] : "";
+    const quantiteVal = idxQuantite !== -1 ? parseInt(values[idxQuantite], 10) : 1;
+
+    // Validation minimaliste : il faut au moins le type d'équipement
+    if (typeVal) {
+      result.push({
+        type: typeVal,
+        marque: idxMarque !== -1 ? values[idxMarque] : "",
+        modele: idxModele !== -1 ? values[idxModele] : "",
+        taille: idxTaille !== -1 ? values[idxTaille] : "Taille Unique",
+        tailleEnfant: idxTailleEnfant !== -1 ? values[idxTailleEnfant] : "",
+        tailleMax: idxTailleMax !== -1 && values[idxTailleMax] ? Number(values[idxTailleMax]) : null,
+        quantite: isNaN(quantiteVal) || quantiteVal < 1 ? 1 : quantiteVal
+      });
+    }
+  }
+
+  return result;
+}
+
+
 async function processCSVImportReassort() {
   if (!parsedCSVData || parsedCSVData.length === 0) return;
 
