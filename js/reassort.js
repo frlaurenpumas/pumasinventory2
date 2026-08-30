@@ -245,3 +245,67 @@ async function handleRemoveEquipment(event) {
     if (btnSubmit) btnSubmit.disabled = false;
   }
 }
+
+async function processCSVImportReassort() {
+  if (!parsedCSVData || parsedCSVData.length === 0) return;
+
+  const btn = document.getElementById("btn-process-csv");
+  btn.disabled = true;
+  btn.textContent = "Importation en cours...";
+
+  try {
+    let totalCreated = 0;
+    let batch = db.batch();
+    let operationCount = 0;
+
+    for (const row of parsedCSVData) {
+      for (let i = 0; i < row.quantite; i++) {
+        const docRef = db.collection("equipment").doc();
+        
+        const newEquipment = {
+          type: row.type,
+          marque: row.marque,
+          modele: row.modele,
+          taille: row.taille,
+          tailleEnfant: row.tailleConstructeur, // Enregistré sous 'tailleEnfant' dans Firestore
+          statut: "en_stock",
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        if (row.tailleMax) {
+          newEquipment.tailleMax = Number(row.tailleMax);
+        }
+
+        batch.set(docRef, newEquipment);
+        operationCount++;
+        totalCreated++;
+
+        if (operationCount >= 450) {
+          await batch.commit();
+          batch = db.batch();
+          operationCount = 0;
+        }
+      }
+    }
+
+    if (operationCount > 0) {
+      await batch.commit();
+    }
+
+    alert(`✅ Réassort réussi ! ${totalCreated} exemplaire(s) d'équipement ajouté(s) au stock.`);
+
+    document.getElementById("csv-file-input").value = "";
+    document.getElementById("csv-file-name").textContent = "Aucun fichier sélectionné";
+    document.getElementById("csv-preview-container").style.display = "none";
+    parsedCSVData = [];
+
+    if (typeof loadInventory === "function") await loadInventory();
+
+  } catch (error) {
+    console.error("Erreur lors de l'importation CSV :", error);
+    alert("Une erreur est survenue lors de l'injection des données.");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "🚀 Valider et injecter en base";
+  }
+}
