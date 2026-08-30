@@ -6,8 +6,8 @@ let parsedCSVData = [];
 
 // Liste des adresses admin autorisées à sortir du matériel du stock
 const ADMIN_EMAILS = [
-  "admin@monclub.fr",
-  "president@monclub.fr"
+  "frlauren@outlook.fr"
+  // "president@monclub.fr"
   // Ajouter les adresses des administrateurs ici
 ];
 
