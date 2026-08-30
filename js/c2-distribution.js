@@ -421,25 +421,35 @@ function populateSizesFirst(key, type, stockItems) {
   }
 
   const uniqueSizeMap = new Map();
+
   stockItems.forEach(item => {
     const rawSize = String(item.taille || "Taille Unique").trim();
-    let label = rawSize;
-    if (item.tailleMax) label += ` (T.Max: ${item.tailleMax}cm)`;
-    else if (type === "Crosse") label += " (à couper)";
+    const tMax = item.tailleMax ? String(item.tailleMax).trim() : "";
     
-    if (!uniqueSizeMap.has(rawSize)) {
-      uniqueSizeMap.set(rawSize, label);
+    // Si une taille MAX existe, on crée une clé composite unique (ex: "YT-M|120")
+    // Cela évite qu'un YT-M (130cm) n'écrase un YT-M (120cm)
+    const compositeKey = tMax ? `${rawSize}|${tMax}` : rawSize;
+
+    let label = rawSize;
+    if (tMax) {
+      label += ` (T.Max: ${tMax}cm)`;
+    } else if (type === "Crosse") {
+      label += " (à couper)";
+    }
+    
+    if (!uniqueSizeMap.has(compositeKey)) {
+      uniqueSizeMap.set(compositeKey, { sizeValue: compositeKey, labelText: label });
     }
   });
 
-  const sortedEntries = Array.from(uniqueSizeMap.entries()).sort(([valA], [valB]) => {
-    return sortSizes(valA, valB, type);
+  const sortedEntries = Array.from(uniqueSizeMap.values()).sort((a, b) => {
+    return sortSizes(a.labelText, b.labelText, type);
   });
 
-  sortedEntries.forEach(([sizeValue, labelText]) => {
+  sortedEntries.forEach(item => {
     const opt = document.createElement("option");
-    opt.value = sizeValue;
-    opt.textContent = labelText;
+    opt.value = item.sizeValue; // Stocke "YT-M|120" ou "YT-M"
+    opt.textContent = item.labelText;
     sizeSelect.appendChild(opt);
   });
 }
@@ -449,14 +459,17 @@ function onSizeChange(key, type) {
   const modelSelect = document.getElementById(`grid-model-${key}`);
   if (!sizeSelect || !modelSelect) return;
 
-  const selectedSize = sizeSelect.value;
+  const selectedValue = sizeSelect.value;
   modelSelect.innerHTML = '<option value="">-- Marque / Modèle (T. Constructeur) --</option>';
 
-  if (!selectedSize) {
+  if (!selectedValue) {
     modelSelect.innerHTML = '<option value="">-- Choisir Taille d\'abord --</option>';
     updateMandatoryCounter();
     return;
   }
+
+  // Décomposition de la clé composite (ex: "YT-M|120" -> rawSize = "YT-M", targetTMax = "120")
+  const [selectedSize, selectedTMax] = selectedValue.split("|");
 
   const isOverridden = overrideFilterMap.get(key) || false;
   
@@ -470,9 +483,15 @@ function onSizeChange(key, type) {
     if (suggested.length > 0) stock = suggested;
   }
 
+  // Filtrage précis : correspond à la taille ET à la taille MAX (si présente)
   const matchingItems = stock.filter(i => {
     const itemSize = String(i.taille || "Taille Unique").trim();
-    return itemSize === String(selectedSize).trim();
+    const itemTMax = i.tailleMax ? String(i.tailleMax).trim() : "";
+
+    const matchesSize = itemSize === selectedSize;
+    const matchesTMax = selectedTMax ? itemTMax === selectedTMax : true;
+
+    return matchesSize && matchesTMax;
   });
   
   const modelOptions = [];
@@ -511,7 +530,6 @@ function onSizeChange(key, type) {
 
   updateMandatoryCounter();
 }
-
 function onGridChange(key) {
   updateMandatoryCounter();
 }
