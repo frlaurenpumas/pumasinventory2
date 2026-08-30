@@ -296,6 +296,10 @@ function getFormattedMeasure(type, adh) {
 }
 
 // --- GRILLE D'ATTRIBUTION ---
+Voici ton code renderGridSection mis à jour avec le libellé de la 3ᵉ colonne clarifié, ainsi que la version adaptée de onSizeChange pour afficher la taille constructeur / enfant dans la liste déroulante des modèles.
+1. Ta fonction renderGridSection mise à jour
+JavaScript
+
 function renderGridSection(equipmentList, containerId, isMandatory) {
   const tbody = document.getElementById(containerId);
   if (!tbody) return;
@@ -453,7 +457,7 @@ function onSizeChange(key, type) {
   if (!sizeSelect || !modelSelect) return;
 
   const selectedSize = sizeSelect.value;
-  modelSelect.innerHTML = '<option value="">-- Marque / Modèle --</option>';
+  modelSelect.innerHTML = '<option value="">-- Marque / Modèle (T. Constructeur) --</option>';
 
   if (!selectedSize) {
     modelSelect.innerHTML = '<option value="">-- Choisir Taille d\'abord --</option>';
@@ -479,17 +483,42 @@ function onSizeChange(key, type) {
     return itemSize === String(selectedSize).trim();
   });
   
-  const models = [...new Set(matchingItems.map(i => `${i.marque || ''} ${i.modele || ''}`.trim()))].filter(Boolean);
+  // Tableau d'objets pour différencier l'affichage du libellé et la valeur enregistrée
+  const modelOptions = [];
 
-  models.forEach(m => {
+  matchingItems.forEach(i => {
+    const marqueModele = `${i.marque || ''} ${i.modele || ''}`.trim();
+    
+    // Récupération dynamique du champ taille constructeur / enfant dans le CSV/Firestore
+    const tConstructeur = i.tailleConstructeur || i.tailleEnfant || i.tailleFabricant || i.taille_constructeur || i.tailleConstructeurChild || "";
+    
+    let label = marqueModele;
+    if (tConstructeur) {
+      label += ` — (T. Constructeur : ${tConstructeur})`;
+    }
+
+    if (marqueModele) {
+      modelOptions.push({
+        value: marqueModele,
+        label: label
+      });
+    }
+  });
+
+  // Dédoublonnage basé sur le libellé d'affichage
+  const uniqueModels = Array.from(
+    new Map(modelOptions.map(item => [item.label, item])).values()
+  );
+
+  uniqueModels.forEach(m => {
     const opt = document.createElement("option");
-    opt.value = m;
-    opt.textContent = m;
+    opt.value = m.value;   // Valeur enregistrée (ex: "Bauer Vapor")
+    opt.textContent = m.label; // Libellé affiché (ex: "Bauer Vapor — (T. Constructeur : Jr M)")
     modelSelect.appendChild(opt);
   });
 
-  if (models.length === 1) {
-    modelSelect.value = models[0];
+  if (uniqueModels.length === 1) {
+    modelSelect.value = uniqueModels[0].value;
   }
 
   updateMandatoryCounter();
