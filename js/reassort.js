@@ -2,8 +2,10 @@
  * Module de gestion du Réassort et des Sorties d'inventaire
  */
 
-// js/reassort.js — Remplit le select d'équipement à partir de state.js
+// Variable globale pour stocker temporairement les données CSV analysées
+let parsedCSVData = [];
 
+// Remplit le select d'équipement à partir de state.js
 function populateReassortEquipmentSelect() {
   const select = document.getElementById("eq-type");
   if (!select) return;
@@ -121,7 +123,6 @@ async function handleAddSingleEquipment(event) {
     const user = firebase.auth().currentUser;
     const benevoleEmail = user ? user.email : "Inconnu";
     
-
     const newEquipment = {
       type: typeVal,
       marque: marqueVal,
@@ -247,9 +248,32 @@ async function handleRemoveEquipment(event) {
 }
 
 
-let parsedCSVData = [];
+// --- 3. RÉASSORT EN MASSE (IMPORT CSV) ---
 
-// 1. Parsing avec les colonnes exactes : Equipement, Marque, Modèle, Taille, Taille constructeur, Taille Max
+// Sélection et lecture du fichier CSV
+function handleCSVFileSelect(event) {
+  const file = event.target.files[0];
+  const fileNameLabel = document.getElementById("csv-file-name");
+  const previewContainer = document.getElementById("csv-preview-container");
+
+  if (!file) {
+    if (fileNameLabel) fileNameLabel.textContent = "Aucun fichier sélectionné";
+    if (previewContainer) previewContainer.style.display = "none";
+    return;
+  }
+
+  if (fileNameLabel) fileNameLabel.textContent = file.name;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const content = e.target.result;
+    parsedCSVData = parseCSVContent(content);
+    renderCSVPreview(parsedCSVData);
+  };
+  reader.readAsText(file, "UTF-8");
+}
+
+// Parsing du fichier CSV (Colonnes: Equipement, Marque, Modèle, Taille, Taille constructeur, Taille Max, Quantité)
 function parseCSVContent(csvText) {
   const lines = csvText.split(/\r\n|\n/);
   const result = [];
@@ -279,7 +303,6 @@ function parseCSVContent(csvText) {
     const typeVal = idxEquipement !== -1 ? values[idxEquipement] : "";
     const quantiteVal = idxQuantite !== -1 ? parseInt(values[idxQuantite], 10) : 1;
 
-    // Validation minimaliste : il faut au moins le type d'équipement
     if (typeVal) {
       result.push({
         type: typeVal,
@@ -296,15 +319,55 @@ function parseCSVContent(csvText) {
   return result;
 }
 
+// Affichage du tableau d'aperçu
+function renderCSVPreview(data) {
+  const tbody = document.getElementById("csv-preview-body");
+  const countEl = document.getElementById("csv-count");
+  const container = document.getElementById("csv-preview-container");
 
+  if (!tbody || !container) return;
+
+  tbody.innerHTML = "";
+  if (countEl) countEl.textContent = data.length;
+
+  if (data.length === 0) {
+    alert("Le fichier CSV est vide ou le format des en-têtes est incorrect.");
+    container.style.display = "none";
+    return;
+  }
+
+  data.forEach(item => {
+    const tr = document.createElement("tr");
+    tr.style.borderBottom = "1px solid #f1f5f9";
+    tr.innerHTML = `
+      <td style="padding: 6px 8px;">${item.type}</td>
+      <td style="padding: 6px 8px;">${item.marque}</td>
+      <td style="padding: 6px 8px;">${item.modele}</td>
+      <td style="padding: 6px 8px;">${item.taille}</td>
+      <td style="padding: 6px 8px;">${item.tailleEnfant || '-'}</td>
+      <td style="padding: 6px 8px;">${item.tailleMax ? item.tailleMax + ' cm' : '-'}</td>
+      <td style="padding: 6px 8px;"><strong>${item.quantite}</strong></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  container.style.display = "block";
+}
+
+// Injection en masse Firestore (par lots)
 async function processCSVImportReassort() {
   if (!parsedCSVData || parsedCSVData.length === 0) return;
 
   const btn = document.getElementById("btn-process-csv");
-  btn.disabled = true;
-  btn.textContent = "Importation en cours...";
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Importation en cours...";
+  }
 
   try {
+    const user = firebase.auth().currentUser;
+    const benevoleEmail = user ? user.email : "Inconnu";
+
     let totalCreated = 0;
     let batch = db.batch();
     let operationCount = 0;
@@ -318,12 +381,13 @@ async function processCSVImportReassort() {
           marque: row.marque,
           modele: row.modele,
           taille: row.taille,
-          tailleEnfant: row.tailleConstructeur, // Enregistré sous 'tailleEnfant' dans Firestore
+          tailleEnfant: row.tailleEnfant, // Correctement lié
           statut: "en_stock",
+          createdByEmail: benevoleEmail,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
-        if (row.tailleMax) {
+        if (row.tailleMax !== null) {
           newEquipment.tailleMax = Number(row.tailleMax);
         }
 
@@ -331,6 +395,7 @@ async function processCSVImportReassort() {
         operationCount++;
         totalCreated++;
 
+        // Limite Firestore à 450 opérations par batch
         if (operationCount >= 450) {
           await batch.commit();
           batch = db.batch();
@@ -345,9 +410,13 @@ async function processCSVImportReassort() {
 
     alert(`✅ Réassort réussi ! ${totalCreated} exemplaire(s) d'équipement ajouté(s) au stock.`);
 
-    document.getElementById("csv-file-input").value = "";
-    document.getElementById("csv-file-name").textContent = "Aucun fichier sélectionné";
-    document.getElementById("csv-preview-container").style.display = "none";
+    const fileInput = document.getElementById("csv-file-input");
+    const fileNameLabel = document.getElementById("csv-file-name");
+    const previewContainer = document.getElementById("csv-preview-container");
+
+    if (fileInput) fileInput.value = "";
+    if (fileNameLabel) fileNameLabel.textContent = "Aucun fichier sélectionné";
+    if (previewContainer) previewContainer.style.display = "none";
     parsedCSVData = [];
 
     if (typeof loadInventory === "function") await loadInventory();
@@ -356,7 +425,9 @@ async function processCSVImportReassort() {
     console.error("Erreur lors de l'importation CSV :", error);
     alert("Une erreur est survenue lors de l'injection des données.");
   } finally {
-    btn.disabled = false;
-    btn.textContent = "🚀 Valider et injecter en base";
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "🚀 Valider et injecter en base";
+    }
   }
 }
