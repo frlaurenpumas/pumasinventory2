@@ -2,22 +2,24 @@
  * Module de gestion du Réassort et des Sorties d'inventaire
  */
 
-// Variable globale pour stocker temporairement les données CSV analysées
 let parsedCSVData = [];
 
-// Remplit le select d'équipement à partir de state.js
+// Liste des adresses admin autorisées à sortir du matériel du stock
+const ADMIN_EMAILS = [
+  "admin@monclub.fr",
+  "president@monclub.fr"
+  // Ajouter les adresses des administrateurs ici
+];
+
 function populateReassortEquipmentSelect() {
   const select = document.getElementById("eq-type");
   if (!select) return;
 
-  // Réinitialisation
   select.innerHTML = '<option value="">-- Choisir --</option>';
 
-  // Groupe 1 : Obligatoires
   if (typeof MANDATORY_EQUIPMENTS !== "undefined") {
     const optGroupMandatory = document.createElement("optgroup");
     optGroupMandatory.label = "Équipements obligatoires";
-
     MANDATORY_EQUIPMENTS.forEach(item => {
       const opt = document.createElement("option");
       opt.value = item.type;
@@ -27,11 +29,9 @@ function populateReassortEquipmentSelect() {
     select.appendChild(optGroupMandatory);
   }
 
-  // Groupe 2 : Optionnels
   if (typeof OPTIONAL_EQUIPMENTS !== "undefined") {
     const optGroupOptional = document.createElement("optgroup");
     optGroupOptional.label = "Équipements optionnels";
-
     OPTIONAL_EQUIPMENTS.forEach(item => {
       const opt = document.createElement("option");
       opt.value = item.type;
@@ -42,7 +42,6 @@ function populateReassortEquipmentSelect() {
   }
 }
 
-// Adaptation dynamique du formulaire selon le type d'équipement choisi
 function setupDynamicFormFields() {
   const selectType = document.getElementById("eq-type");
   const inputTailleMax = document.getElementById("eq-taille-max");
@@ -68,10 +67,30 @@ function setupDynamicFormFields() {
   });
 }
 
-// Lancement au chargement du DOM
+// Vérification du rôle Administrateur pour la sortie de matériel
+function checkAdminAccessForRemove() {
+  const user = firebase.auth().currentUser;
+  const removeCard = document.getElementById("remove-equipment-card");
+  
+  if (!removeCard) return;
+
+  if (user && ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+    removeCard.style.display = "block";
+  } else {
+    removeCard.style.display = "none";
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   populateReassortEquipmentSelect();
   setupDynamicFormFields();
+  
+  // Écouteur Firebase pour afficher/masquer la zone Admin
+  if (typeof firebase !== "undefined" && firebase.auth()) {
+    firebase.auth().onAuthStateChanged(() => {
+      checkAdminAccessForRemove();
+    });
+  }
 });
 
 
@@ -82,7 +101,6 @@ async function handleAddSingleEquipment(event) {
   const btnSubmit = document.getElementById("btn-save-eq");
   const feedback = document.getElementById("reassort-feedback");
   
-  // Récupération des valeurs du formulaire
   const typeVal = document.getElementById("eq-type")?.value || "";
   const marqueVal = document.getElementById("eq-marque")?.value.trim() || "";
   const modeleVal = document.getElementById("eq-modele")?.value.trim() || "";
@@ -93,7 +111,6 @@ async function handleAddSingleEquipment(event) {
   const tailleEnfantVal = document.getElementById("eq-taille-enfant")?.value.trim() || "";
   const provenanceVal = document.getElementById("eq-provenance")?.value || "Achat";
 
-  // Contrôle préventif du type
   if (!typeVal) {
     if (feedback) {
       feedback.innerText = "⚠️ Veuillez sélectionner un type d'équipement.";
@@ -102,7 +119,6 @@ async function handleAddSingleEquipment(event) {
     return;
   }
 
-  // Vérification préventive pour tailleMax (équipements sur stature en cm)
   const needsTailleMax = ["Casque", "Plastron", "Coudières", "Culotte", "Jambières", "Crosse"].includes(typeVal);
   
   if (needsTailleMax && (parsedTailleMax === null || isNaN(parsedTailleMax))) {
@@ -119,7 +135,6 @@ async function handleAddSingleEquipment(event) {
   }
 
   try {
-    // Récupération du bénévole connecté via Firebase Auth
     const user = firebase.auth().currentUser;
     const benevoleEmail = user ? user.email : "Inconnu";
     
@@ -137,7 +152,6 @@ async function handleAddSingleEquipment(event) {
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
-    // Ajout dans la collection "equipment"
     const docRef = await db.collection("equipment").add(newEquipment);
 
     if (feedback) {
@@ -145,7 +159,6 @@ async function handleAddSingleEquipment(event) {
       feedback.className = "feedback-msg success";
     }
 
-    // Remise à zero explicite du formulaire
     const form = document.getElementById("add-equipment-form");
     if (form) {
       form.reset();
@@ -157,7 +170,6 @@ async function handleAddSingleEquipment(event) {
       });
     }
 
-    // Réinitialisation de l'affichage de tailleMax
     const inputTailleMax = document.getElementById("eq-taille-max");
     if (inputTailleMax) {
       inputTailleMax.disabled = false;
@@ -179,9 +191,211 @@ async function handleAddSingleEquipment(event) {
   }
 }
 
-// --- 2. SORTIE DE MATÉRIEL (Mise au rebut, perte, revente) ---
+
+// --- 2. RÉASSORT EN MASSE (IMPORT CSV & MODÈLE) ---
+
+// Génération du modèle CSV téléchargeable
+function downloadCSVTemplate() {
+  const csvHeaders = "Equipement;Marque;Modèle;Taille;Taille constructeur;Taille Max;Quantité\n";
+  const sampleLines = [
+    "Plastron;CCM;RBZ;M;120-130;130;5",
+    "Patins;Bauer;Vapor;38;;;2",
+    "Casque;Bauer;RE-AKT;S;110-120;120;3"
+  ].join("\n");
+
+  const blob = new Blob(["\ufeff" + csvHeaders + sampleLines], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  
+  link.setAttribute("href", url);
+  link.setAttribute("download", "modele_reassort_equipement.csv");
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+function handleCSVFileSelect(event) {
+  const file = event.target.files[0];
+  const fileNameLabel = document.getElementById("csv-file-name");
+  const previewContainer = document.getElementById("csv-preview-container");
+
+  if (!file) {
+    if (fileNameLabel) fileNameLabel.textContent = "Aucun fichier sélectionné";
+    if (previewContainer) previewContainer.style.display = "none";
+    return;
+  }
+
+  if (fileNameLabel) fileNameLabel.textContent = file.name;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const content = e.target.result;
+    parsedCSVData = parseCSVContent(content);
+    renderCSVPreview(parsedCSVData);
+  };
+  reader.readAsText(file, "UTF-8");
+}
+
+function parseCSVContent(csvText) {
+  const lines = csvText.split(/\r\n|\n/);
+  const result = [];
+  if (lines.length < 2) return result;
+
+  const separator = lines[0].includes(";") ? ";" : ",";
+  const headers = lines[0].split(separator).map(h => h.trim().toLowerCase());
+
+  const idxEquipement = headers.findIndex(h => h.includes("equipement") || h.includes("équipement") || h === "type");
+  const idxMarque = headers.findIndex(h => h.includes("marque"));
+  const idxModele = headers.findIndex(h => h.includes("modele") || h.includes("modèle"));
+  const idxTaille = headers.findIndex(h => h === "taille");
+  const idxTailleEnfant = headers.findIndex(h => h.includes("constructeur") || h.includes("enfant"));
+  const idxTailleMax = headers.findIndex(h => h.includes("max"));
+  const idxQuantite = headers.findIndex(h => h.includes("quantite") || h.includes("quantité") || h === "qte");
+
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+
+    const values = line.split(separator).map(v => v.trim());
+    const typeVal = idxEquipement !== -1 ? values[idxEquipement] : "";
+    const quantiteVal = idxQuantite !== -1 ? parseInt(values[idxQuantite], 10) : 1;
+
+    if (typeVal) {
+      result.push({
+        type: typeVal,
+        marque: idxMarque !== -1 ? values[idxMarque] : "",
+        modele: idxModele !== -1 ? values[idxModele] : "",
+        taille: idxTaille !== -1 ? values[idxTaille] : "Taille Unique",
+        tailleEnfant: idxTailleEnfant !== -1 ? values[idxTailleEnfant] : "",
+        tailleMax: idxTailleMax !== -1 && values[idxTailleMax] ? Number(values[idxTailleMax]) : null,
+        quantite: isNaN(quantiteVal) || quantiteVal < 1 ? 1 : quantiteVal
+      });
+    }
+  }
+
+  return result;
+}
+
+function renderCSVPreview(data) {
+  const tbody = document.getElementById("csv-preview-body");
+  const countEl = document.getElementById("csv-count");
+  const container = document.getElementById("csv-preview-container");
+
+  if (!tbody || !container) return;
+
+  tbody.innerHTML = "";
+  if (countEl) countEl.textContent = data.length;
+
+  if (data.length === 0) {
+    alert("Le fichier CSV est vide ou le format des en-têtes est incorrect.");
+    container.style.display = "none";
+    return;
+  }
+
+  data.forEach(item => {
+    const tr = document.createElement("tr");
+    tr.style.borderBottom = "1px solid #f1f5f9";
+    tr.innerHTML = `
+      <td style="padding: 6px 8px;">${item.type}</td>
+      <td style="padding: 6px 8px;">${item.marque}</td>
+      <td style="padding: 6px 8px;">${item.modele}</td>
+      <td style="padding: 6px 8px;">${item.taille}</td>
+      <td style="padding: 6px 8px;">${item.tailleEnfant || '-'}</td>
+      <td style="padding: 6px 8px;">${item.tailleMax ? item.tailleMax + ' cm' : '-'}</td>
+      <td style="padding: 6px 8px;"><strong>${item.quantite}</strong></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  container.style.display = "block";
+}
+
+async function processCSVImportReassort() {
+  if (!parsedCSVData || parsedCSVData.length === 0) return;
+
+  const btn = document.getElementById("btn-process-csv");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Importation en cours...";
+  }
+
+  try {
+    const user = firebase.auth().currentUser;
+    const benevoleEmail = user ? user.email : "Inconnu";
+
+    let totalCreated = 0;
+    let batch = db.batch();
+    let operationCount = 0;
+
+    for (const row of parsedCSVData) {
+      for (let i = 0; i < row.quantite; i++) {
+        const docRef = db.collection("equipment").doc();
+        
+        const newEquipment = {
+          type: row.type,
+          marque: row.marque,
+          modele: row.modele,
+          taille: row.taille,
+          tailleEnfant: row.tailleEnfant,
+          statut: "en_stock",
+          createdByEmail: benevoleEmail,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        if (row.tailleMax !== null) {
+          newEquipment.tailleMax = Number(row.tailleMax);
+        }
+
+        batch.set(docRef, newEquipment);
+        operationCount++;
+        totalCreated++;
+
+        if (operationCount >= 450) {
+          await batch.commit();
+          batch = db.batch();
+          operationCount = 0;
+        }
+      }
+    }
+
+    if (operationCount > 0) {
+      await batch.commit();
+    }
+
+    alert(`✅ Réassort réussi ! ${totalCreated} exemplaire(s) d'équipement ajouté(s) au stock.`);
+
+    const fileInput = document.getElementById("csv-file-input");
+    const fileNameLabel = document.getElementById("csv-file-name");
+    const previewContainer = document.getElementById("csv-preview-container");
+
+    if (fileInput) fileInput.value = "";
+    if (fileNameLabel) fileNameLabel.textContent = "Aucun fichier sélectionné";
+    if (previewContainer) previewContainer.style.display = "none";
+    parsedCSVData = [];
+
+    if (typeof loadInventory === "function") await loadInventory();
+
+  } catch (error) {
+    console.error("Erreur lors de l'importation CSV :", error);
+    alert("Une erreur est survenue lors de l'injection des données.");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "🚀 Valider et injecter en base";
+    }
+  }
+}
+
+
+// --- 3. SORTIE DU STOCK (RÉSERVÉ ADMIN) ---
 async function handleRemoveEquipment(event) {
   event.preventDefault();
+
+  const user = firebase.auth().currentUser;
+  if (!user || !ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+    alert("⚠️ Seul un administrateur est autorisé à retirer un équipement du stock.");
+    return;
+  }
 
   const btnSubmit = document.getElementById("btn-remove-eq");
   const feedback = document.getElementById("remove-feedback");
@@ -203,9 +417,7 @@ async function handleRemoveEquipment(event) {
   }
 
   try {
-    const user = firebase.auth().currentUser;
-    const benevoleEmail = user ? user.email : "Inconnu";
-    
+    const benevoleEmail = user.email;
     const eqRef = db.collection("equipment").doc(eqId);
     const docSnap = await eqRef.get();
 
@@ -244,190 +456,5 @@ async function handleRemoveEquipment(event) {
     }
   } finally {
     if (btnSubmit) btnSubmit.disabled = false;
-  }
-}
-
-
-// --- 3. RÉASSORT EN MASSE (IMPORT CSV) ---
-
-// Sélection et lecture du fichier CSV
-function handleCSVFileSelect(event) {
-  const file = event.target.files[0];
-  const fileNameLabel = document.getElementById("csv-file-name");
-  const previewContainer = document.getElementById("csv-preview-container");
-
-  if (!file) {
-    if (fileNameLabel) fileNameLabel.textContent = "Aucun fichier sélectionné";
-    if (previewContainer) previewContainer.style.display = "none";
-    return;
-  }
-
-  if (fileNameLabel) fileNameLabel.textContent = file.name;
-
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const content = e.target.result;
-    parsedCSVData = parseCSVContent(content);
-    renderCSVPreview(parsedCSVData);
-  };
-  reader.readAsText(file, "UTF-8");
-}
-
-// Parsing du fichier CSV (Colonnes: Equipement, Marque, Modèle, Taille, Taille constructeur, Taille Max, Quantité)
-function parseCSVContent(csvText) {
-  const lines = csvText.split(/\r\n|\n/);
-  const result = [];
-  if (lines.length < 2) return result;
-
-  // Détection automatique du séparateur (, ou ;)
-  const separator = lines[0].includes(";") ? ";" : ",";
-  
-  // Normalisation des en-têtes (minuscules sans espaces superflus)
-  const headers = lines[0].split(separator).map(h => h.trim().toLowerCase());
-
-  // Recherche des index de colonnes
-  const idxEquipement = headers.findIndex(h => h.includes("equipement") || h.includes("équipement") || h === "type");
-  const idxMarque = headers.findIndex(h => h.includes("marque"));
-  const idxModele = headers.findIndex(h => h.includes("modele") || h.includes("modèle"));
-  const idxTaille = headers.findIndex(h => h === "taille");
-  const idxTailleEnfant = headers.findIndex(h => h.includes("constructeur") || h.includes("enfant"));
-  const idxTailleMax = headers.findIndex(h => h.includes("max"));
-  const idxQuantite = headers.findIndex(h => h.includes("quantite") || h.includes("quantité") || h === "qte");
-
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-
-    const values = line.split(separator).map(v => v.trim());
-    
-    const typeVal = idxEquipement !== -1 ? values[idxEquipement] : "";
-    const quantiteVal = idxQuantite !== -1 ? parseInt(values[idxQuantite], 10) : 1;
-
-    if (typeVal) {
-      result.push({
-        type: typeVal,
-        marque: idxMarque !== -1 ? values[idxMarque] : "",
-        modele: idxModele !== -1 ? values[idxModele] : "",
-        taille: idxTaille !== -1 ? values[idxTaille] : "Taille Unique",
-        tailleEnfant: idxTailleEnfant !== -1 ? values[idxTailleEnfant] : "",
-        tailleMax: idxTailleMax !== -1 && values[idxTailleMax] ? Number(values[idxTailleMax]) : null,
-        quantite: isNaN(quantiteVal) || quantiteVal < 1 ? 1 : quantiteVal
-      });
-    }
-  }
-
-  return result;
-}
-
-// Affichage du tableau d'aperçu
-function renderCSVPreview(data) {
-  const tbody = document.getElementById("csv-preview-body");
-  const countEl = document.getElementById("csv-count");
-  const container = document.getElementById("csv-preview-container");
-
-  if (!tbody || !container) return;
-
-  tbody.innerHTML = "";
-  if (countEl) countEl.textContent = data.length;
-
-  if (data.length === 0) {
-    alert("Le fichier CSV est vide ou le format des en-têtes est incorrect.");
-    container.style.display = "none";
-    return;
-  }
-
-  data.forEach(item => {
-    const tr = document.createElement("tr");
-    tr.style.borderBottom = "1px solid #f1f5f9";
-    tr.innerHTML = `
-      <td style="padding: 6px 8px;">${item.type}</td>
-      <td style="padding: 6px 8px;">${item.marque}</td>
-      <td style="padding: 6px 8px;">${item.modele}</td>
-      <td style="padding: 6px 8px;">${item.taille}</td>
-      <td style="padding: 6px 8px;">${item.tailleEnfant || '-'}</td>
-      <td style="padding: 6px 8px;">${item.tailleMax ? item.tailleMax + ' cm' : '-'}</td>
-      <td style="padding: 6px 8px;"><strong>${item.quantite}</strong></td>
-    `;
-    tbody.appendChild(tr);
-  });
-
-  container.style.display = "block";
-}
-
-// Injection en masse Firestore (par lots)
-async function processCSVImportReassort() {
-  if (!parsedCSVData || parsedCSVData.length === 0) return;
-
-  const btn = document.getElementById("btn-process-csv");
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = "Importation en cours...";
-  }
-
-  try {
-    const user = firebase.auth().currentUser;
-    const benevoleEmail = user ? user.email : "Inconnu";
-
-    let totalCreated = 0;
-    let batch = db.batch();
-    let operationCount = 0;
-
-    for (const row of parsedCSVData) {
-      for (let i = 0; i < row.quantite; i++) {
-        const docRef = db.collection("equipment").doc();
-        
-        const newEquipment = {
-          type: row.type,
-          marque: row.marque,
-          modele: row.modele,
-          taille: row.taille,
-          tailleEnfant: row.tailleEnfant, // Correctement lié
-          statut: "en_stock",
-          createdByEmail: benevoleEmail,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        };
-
-        if (row.tailleMax !== null) {
-          newEquipment.tailleMax = Number(row.tailleMax);
-        }
-
-        batch.set(docRef, newEquipment);
-        operationCount++;
-        totalCreated++;
-
-        // Limite Firestore à 450 opérations par batch
-        if (operationCount >= 450) {
-          await batch.commit();
-          batch = db.batch();
-          operationCount = 0;
-        }
-      }
-    }
-
-    if (operationCount > 0) {
-      await batch.commit();
-    }
-
-    alert(`✅ Réassort réussi ! ${totalCreated} exemplaire(s) d'équipement ajouté(s) au stock.`);
-
-    const fileInput = document.getElementById("csv-file-input");
-    const fileNameLabel = document.getElementById("csv-file-name");
-    const previewContainer = document.getElementById("csv-preview-container");
-
-    if (fileInput) fileInput.value = "";
-    if (fileNameLabel) fileNameLabel.textContent = "Aucun fichier sélectionné";
-    if (previewContainer) previewContainer.style.display = "none";
-    parsedCSVData = [];
-
-    if (typeof loadInventory === "function") await loadInventory();
-
-  } catch (error) {
-    console.error("Erreur lors de l'importation CSV :", error);
-    alert("Une erreur est survenue lors de l'injection des données.");
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = "🚀 Valider et injecter en base";
-    }
   }
 }
