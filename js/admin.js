@@ -65,16 +65,24 @@ function importInventoryCSV() {
 
   Papa.parse(fileInput.files[0], {
     header: true,
-    skipEmptyLines: true,
-    delimiter: ";", // Force le point-virgule pour éviter que 24,5 ne découpe la colonne
+    skipEmptyLines: "greedy", // Ignore les lignes vides ou remplies d'espaces
+    dynamicTyping: false,     // Conserve les types en String pour éviter les erreurs d'interprétation
     transformHeader: (h) => h.trim(),
     complete: async (results) => {
-      const rows = results.data;
+      let rows = results.data;
       if (!rows || rows.length === 0) {
-        return alert("Le fichier CSV est vide.");
+        return alert("Le fichier CSV est vide ou illisible.");
       }
 
-      console.log(`[DEBUG] Début de l'import de ${rows.length} équipements...`);
+      // Filtrer les lignes vides (qui n'ont aucune clé avec du contenu)
+      rows = rows.filter(row => Object.values(row).some(val => val && val.toString().trim() !== ""));
+
+      if (rows.length === 0) {
+        return alert("Aucune donnée valide n'a été trouvée dans le CSV.");
+      }
+
+      console.log(`[DEBUG] Séparateur détecté: "${results.meta.delimiter}"`);
+      console.log(`[DEBUG] Début de l'import de ${rows.length} équipements...`, rows[0]);
 
       try {
         const BATCH_SIZE = 400;
@@ -84,49 +92,51 @@ function importInventoryCSV() {
           const batch = db.batch();
 
           chunk.forEach(row => {
-            // 1. Détection de l'ID d'origine
-            const docId = row["ID"] || row["id"] || row["docId"] || "";
+            // Helper pour récupérer la valeur d'une colonne peu importe sa casse ou ses accents
+            const getVal = (...keys) => {
+              for (const k of keys) {
+                if (row[k] !== undefined && row[k] !== null) return String(row[k]).trim();
+              }
+              return "";
+            };
 
-            // 2. Mappage des champs demandés
-            const typeVal = row["Equipement"] || row["Équipement"] || row["Type équipement"] || row["Type equipement"] || row["Type"] || row["type"] || "";
-            const marqueVal = row["Marque"] || row["marque"] || "";
-            const modeleVal = row["Modèle"] || row["Modele"] || row["modele"] || "";
-            const tailleVal = row["Taille"] || row["taille"] || "";
-            
-            // Taille selon constructeur / Taille Enfant
-            const tailleConstructeurVal = row["Taille (selon constructeur)"] || row["Taille constructeur"] || row["Taille enfant"] || row["Taille Enfant"] || row["tailleEnfant"] || "";
-            
-            const provenanceVal = row["Provenance"] || row["provenance"] || "Import CSV";
-            const statutVal = row["Statut"] || row["statut"] || "en_stock";
-            const emailContactVal = row["Email Contact"] || row["Email contact"] || row["emailContact"] || "";
-            const benevoleVal = row["Ajouté par (Bénévole)"] || row["Ajouté par"] || row["Bénévole"] || row["createdByName"] || row["createdByEmail"] || "";
+            const docId = getVal("ID", "id", "docId");
+            const typeVal = getVal("Equipement", "Équipement", "Type équipement", "Type equipement", "Type", "type");
+            const marqueVal = getVal("Marque", "marque");
+            const modeleVal = getVal("Modèle", "Modele", "modele");
+            const tailleVal = getVal("Taille", "taille");
+            const tailleConstructeurVal = getVal("Taille (selon constructeur)", "Taille constructeur", "Taille enfant", "Taille Enfant", "tailleEnfant");
+            const provenanceVal = getVal("Provenance", "provenance") || "Import CSV";
+            const statutVal = getVal("Statut", "statut") || "en_stock";
+            const emailContactVal = getVal("Email Contact", "Email contact", "emailContact");
+            const benevoleVal = getVal("Ajouté par (Bénévole)", "Ajouté par", "Bénévole", "createdByName", "createdByEmail");
 
-            // Conversion Taille Max (Gestion de la virgule décimale française)
-            const rawTailleMax = (row["Taille Max (cm)"] || row["Taille Max"] || row["Taille MAX"] || row["tailleMax"] || row["taille_max"] || "").toString().replace(',', '.');
-            const parsedTailleMax = rawTailleMax.trim() !== "" ? Number(rawTailleMax) : null;
+            // Conversion Taille Max (supporte la virgule décimale)
+            const rawTailleMax = getVal("Taille Max (cm)", "Taille Max", "Taille MAX", "tailleMax", "taille_max").replace(',', '.');
+            const parsedTailleMax = rawTailleMax !== "" ? Number(rawTailleMax) : null;
 
-            // Réutilisation de l'ID existant ou génération d'un nouveau
-            const docRef = docId.trim() !== "" 
-              ? db.collection("equipment").doc(docId.trim()) 
+            // Ne pas ajouter la ligne si le type est vide (ligne corrompue)
+            if (!typeVal && !marqueVal && !modeleVal) return;
+
+            const docRef = docId !== "" 
+              ? db.collection("equipment").doc(docId) 
               : db.collection("equipment").doc();
 
-            // Construction de l'objet Firestore
             const equipmentData = {
-              type: typeVal.trim(),
-              marque: marqueVal.trim(),
-              modele: modeleVal.trim(),
-              taille: tailleVal.trim(),
-              tailleEnfant: tailleConstructeurVal.trim(),
+              type: typeVal,
+              marque: marqueVal,
+              modele: modeleVal,
+              taille: tailleVal,
+              tailleEnfant: tailleConstructeurVal,
               tailleMax: parsedTailleMax !== null && !isNaN(parsedTailleMax) ? parsedTailleMax : null,
-              provenance: provenanceVal.trim(),
-              statut: statutVal.trim(),
-              emailContact: emailContactVal.trim(),
+              provenance: provenanceVal,
+              statut: statutVal,
+              emailContact: emailContactVal,
               importedAt: firebase.firestore.FieldValue.serverTimestamp()
             };
 
-            // Ajout du nom du bénévole s'il est renseigné
-            if (benevoleVal.trim() !== "") {
-              equipmentData.createdByName = benevoleVal.trim();
+            if (benevoleVal !== "") {
+              equipmentData.createdByName = benevoleVal;
             }
 
             batch.set(docRef, equipmentData, { merge: true });
@@ -151,14 +161,6 @@ function importInventoryCSV() {
   });
 }
 
-// Attachement au scope global pour le HTML
-window.importInventoryCSV = importInventoryCSV;
-window.importInventoryCSV = importInventoryCSV;
-
-// Attachement au scope global pour le HTML
-window.importInventoryCSV = importInventoryCSV;
-
-// Attachement au scope global pour le HTML
 window.importInventoryCSV = importInventoryCSV;
 
 async function exportAdherentsCSV() {
