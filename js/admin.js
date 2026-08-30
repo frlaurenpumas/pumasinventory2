@@ -66,6 +66,7 @@ function importInventoryCSV() {
   Papa.parse(fileInput.files[0], {
     header: true,
     skipEmptyLines: true,
+    delimiter: ";", // Force le point-virgule pour éviter que 24,5 ne découpe la colonne
     transformHeader: (h) => h.trim(),
     complete: async (results) => {
       const rows = results.data;
@@ -100,9 +101,9 @@ function importInventoryCSV() {
             const emailContactVal = row["Email Contact"] || row["Email contact"] || row["emailContact"] || "";
             const benevoleVal = row["Ajouté par (Bénévole)"] || row["Ajouté par"] || row["Bénévole"] || row["createdByName"] || row["createdByEmail"] || "";
 
-            // Conversion Taille Max
-            const rawTailleMax = row["Taille Max (cm)"] || row["Taille Max"] || row["Taille MAX"] || row["tailleMax"] || row["taille_max"] || "";
-            const parsedTailleMax = rawTailleMax !== "" ? Number(rawTailleMax) : null;
+            // Conversion Taille Max (Gestion de la virgule décimale française)
+            const rawTailleMax = (row["Taille Max (cm)"] || row["Taille Max"] || row["Taille MAX"] || row["tailleMax"] || row["taille_max"] || "").toString().replace(',', '.');
+            const parsedTailleMax = rawTailleMax.trim() !== "" ? Number(rawTailleMax) : null;
 
             // Réutilisation de l'ID existant ou génération d'un nouveau
             const docRef = docId.trim() !== "" 
@@ -115,7 +116,7 @@ function importInventoryCSV() {
               marque: marqueVal.trim(),
               modele: modeleVal.trim(),
               taille: tailleVal.trim(),
-              tailleEnfant: tailleConstructeurVal.trim(), // Stocke la taille constructeur / enfant
+              tailleEnfant: tailleConstructeurVal.trim(),
               tailleMax: parsedTailleMax !== null && !isNaN(parsedTailleMax) ? parsedTailleMax : null,
               provenance: provenanceVal.trim(),
               statut: statutVal.trim(),
@@ -150,6 +151,8 @@ function importInventoryCSV() {
   });
 }
 
+// Attachement au scope global pour le HTML
+window.importInventoryCSV = importInventoryCSV;
 window.importInventoryCSV = importInventoryCSV;
 
 // Attachement au scope global pour le HTML
