@@ -277,61 +277,145 @@
       </div>
     </section>
     
-        <!-- Vue/Onglet Réassort -->
-    <section id="reassort" class="tab-content">
-      <h2>➕ Saisie & Réassort d'Équipement</h2>
-      
-      <div class="card form-container">
-        <h3>Ajouter un équipement isolé</h3>
-        <form id="add-equipment-form" onsubmit="handleAddSingleEquipment(event)">
-          
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="eq-type">Type d'équipement *</label>
-              <select id="eq-type" required>
-                <option value="">-- Choisir --</option>
-              </select>
-            </div>
-    
-            <div class="form-group">
-              <label for="eq-marque">Marque *</label>
-              <input type="text" id="eq-marque" placeholder="ex: Bauer, CCM..." />
-            </div>
-    
-            <div class="form-group">
-              <label for="eq-modele">Modèle</label>
-              <input type="text" id="eq-modele" placeholder="ex: Vapor 3X" />
-            </div>
-    
-            <div class="form-group">
-              <label for="eq-taille">Taille *</label>
-              <input type="text" id="eq-taille" placeholder="ex: Sr M, Jr L, 14\" required />
-            </div>
+   <!-- Vue/Onglet Réassort -->
+<section id="reassort" class="tab-content">
+  <h2>➕ Saisie, Réassort & Sorties d'Équipement</h2>
 
-            <div class="form-group">
-              <label for="eq-taille-max">Taille MAX (cm) * <small style="color: #666;">(Essentiel pour les suggestions du comptoir, ex: 140, 150)</small></label>
-              <input type="number" id="eq-taille-max" placeholder="Ex: 140" min="50" max="220">
-            </div>
-                        
-            <div class="form-group">
-              <label for="eq-provenance">Origine de l'entrée *</label>
-              <select id="eq-provenance" required>
-                <option value="Restitution tardive">Restitution tardive</option>
-                <option value="Achat ponctuel">Achat ponctuel / Réassort</option>
-                <option value="Donation">Donation / Occasion</option>
-                <option value="Retrouvé en stock">Retrouvé en stock</option>
-              </select>
-            </div>
-          </div>
-    
-          <div class="form-actions">
-            <button type="submit" id="btn-save-eq" class="btn btn-primary"> Enregistrer l'équipement</button>
-          </div>
-          
-          <div id="reassort-feedback" class="feedback-msg"></div>
-        </form>
+  <!-- 1. FORMULAIRE D'AJOUT UNITAIRE -->
+  <div class="card form-container">
+    <h3>Ajouter un équipement isolé</h3>
+    <form id="add-equipment-form" onsubmit="handleAddSingleEquipment(event)">
+      
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="eq-type">Type d'équipement *</label>
+          <select id="eq-type" required>
+            <option value="">-- Choisir --</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="eq-marque">Marque *</label>
+          <input type="text" id="eq-marque" placeholder="ex: Bauer, CCM..." required />
+        </div>
+
+        <div class="form-group">
+          <label for="eq-modele">Modèle</label>
+          <input type="text" id="eq-modele" placeholder="ex: Vapor 3X" />
+        </div>
+
+        <div class="form-group">
+          <label for="eq-taille">Taille *</label>
+          <input type="text" id="eq-taille" placeholder="ex: Sr M, Jr L, 14&quot;" required />
+        </div>
+
+        <div class="form-group">
+          <label for="eq-taille-enfant">Taille enfant / constructeur</label>
+          <input type="text" id="eq-taille-enfant" placeholder="ex: YT-M, Yth, Jr" />
+        </div>
+
+        <div class="form-group">
+          <label for="eq-taille-max">Taille MAX (cm) * <small style="color: #666;">(ex: 140, 150)</small></label>
+          <input type="number" id="eq-taille-max" placeholder="Ex: 140" min="50" max="220">
+        </div>
+                    
+        <div class="form-group">
+          <label for="eq-provenance">Origine de l'entrée *</label>
+          <select id="eq-provenance" required>
+            <option value="Restitution tardive">Restitution tardive</option>
+            <option value="Achat ponctuel">Achat ponctuel / Réassort</option>
+            <option value="Donation">Donation / Occasion</option>
+            <option value="Retrouvé en stock">Retrouvé en stock</option>
+          </select>
+        </div>
       </div>
-    </section>
+
+      <div class="form-actions">
+        <button type="submit" id="btn-save-eq" class="btn btn-primary">💾 Enregistrer l'équipement</button>
+      </div>
+      
+      <div id="reassort-feedback" class="feedback-msg"></div>
+    </form>
+  </div>
+
+  <!-- 2. MODULE DE RÉASSORT EN MASSE (CSV) -->
+  <div class="card form-container" style="margin-top: 25px;">
+    <h3>📦 Réassort en masse (Import CSV)</h3>
+    <p style="color: #666; font-size: 14px; margin-bottom: 15px;">
+      Importez un fichier CSV pour ajouter plusieurs équipements en stock simultanément.<br>
+      <strong>En-têtes acceptés :</strong> <code>Equipement ; Marque ; Modèle ; Taille ; Taille constructeur ; Taille Max ; Quantité</code>
+    </p>
+
+    <div>
+      <input type="file" id="csv-file-input" accept=".csv" style="display: none;" onchange="handleCSVFileSelect(event)">
+      <button type="button" class="btn btn-secondary" onclick="document.getElementById('csv-file-input').click()">
+        📁 Choisir un fichier CSV
+      </button>
+      <span id="csv-file-name" style="margin-left: 10px; font-style: italic; color: #555;">Aucun fichier sélectionné</span>
+    </div>
+
+    <!-- Zone de prévisualisation CSV -->
+    <div id="csv-preview-container" style="display: none; margin-top: 20px;">
+      <h4>Aperçu des données à importer (<span id="csv-count">0</span> ligne(s))</h4>
+      
+      <div style="max-height: 250px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px; margin: 10px 0;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+          <thead>
+            <tr style="background: #f8fafc; text-align: left; border-bottom: 2px solid #e2e8f0;">
+              <th style="padding: 8px;">Équipement</th>
+              <th style="padding: 8px;">Marque</th>
+              <th style="padding: 8px;">Modèle</th>
+              <th style="padding: 8px;">Taille</th>
+              <th style="padding: 8px;">Taille Enfant</th>
+              <th style="padding: 8px;">Taille MAX</th>
+              <th style="padding: 8px;">Quantité</th>
+            </tr>
+          </thead>
+          <tbody id="csv-preview-body"></tbody>
+        </table>
+      </div>
+
+      <div class="form-actions" style="margin-top: 15px;">
+        <button type="button" class="btn btn-success" id="btn-process-csv" onclick="processCSVImportReassort()">
+          🚀 Valider et injecter en base
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. MODULE DE SORTIE DU STOCK / MISE AU REBUT -->
+  <div class="card form-container" style="margin-top: 25px; border-top: 3px solid #ef4444;">
+    <h3>🗑️ Sortie de matériel / Mise au rebut</h3>
+    <form id="remove-equipment-form" onsubmit="handleRemoveEquipment(event)">
+      
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="remove-eq-id">Identifiant de l'équipement (ID Firestore) *</label>
+          <input type="text" id="remove-eq-id" placeholder="ex: 7X8qLpM09aZb..." required />
+        </div>
+
+        <div class="form-group">
+          <label for="remove-motif">Motif de la sortie *</label>
+          <select id="remove-motif" required>
+            <option value="hors_service">Hors service / Casse / Usure</option>
+            <option value="perdu">Perdu / Non restitué</option>
+            <option value="vendu">Vendu / Cédé</option>
+            <option value="donne">Donné</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" id="btn-remove-eq" class="btn" style="background-color: #ef4444; color: white;">
+          ⚠️ Retirer du stock
+        </button>
+      </div>
+
+      <div id="remove-feedback" class="feedback-msg"></div>
+    </form>
+  </div>
+
+</section>
 
    
     <!-- ADMIN / CSV -->
