@@ -306,12 +306,13 @@ function renderGridSection(equipmentList, containerId, isMandatory) {
     const isOverridden = overrideFilterMap.get(key) || false;
     const measureStr = getFormattedMeasure(eqConfig.type, currentAdherentC2);
     
+    // Comparaison insensible à la casse et aux espaces
     const allInStock = (allInventoryCache || []).filter(item => 
-    String(item.type || "").trim().toLowerCase() === String(eqConfig.type || "").trim().toLowerCase() && 
-    item.statut === "en_stock"
-  );
-    const suggestedStock = filterInventoryByRule(eqConfig.type, allInStock, currentAdherentC2);
+      String(item.type || "").trim().toLowerCase() === String(eqConfig.type || "").trim().toLowerCase() && 
+      item.statut === "en_stock"
+    );
     
+    const suggestedStock = filterInventoryByRule(eqConfig.type, allInStock, currentAdherentC2);
     const activeStock = isOverridden ? allInStock : (suggestedStock.length > 0 ? suggestedStock : allInStock);
 
     const tr = document.createElement("tr");
@@ -408,6 +409,89 @@ function toggleOverride(key, isMandatory) {
   restoreSection(OPTIONAL_EQUIPMENTS, "o");
 
   // 4. Recalcul de l'indicateur d'état complet
+  updateMandatoryCounter();
+}
+
+function populateSizesFirst(key, type, stockItems) {
+  const sizeSelect = document.getElementById(`grid-size-${key}`);
+  if (!sizeSelect) return;
+
+  sizeSelect.innerHTML = '<option value="">-- Choisir Taille --</option>';
+
+  if (!stockItems || stockItems.length === 0) {
+    sizeSelect.innerHTML = '<option value="">-- Indisponible --</option>';
+    return;
+  }
+
+  const uniqueSizeMap = new Map();
+  stockItems.forEach(item => {
+    const rawSize = String(item.taille || "Taille Unique").trim();
+    let label = rawSize;
+    if (item.tailleMax) label += ` (T.Max: ${item.tailleMax}cm)`;
+    else if (type === "Crosse") label += " (à couper)";
+    
+    if (!uniqueSizeMap.has(rawSize)) {
+      uniqueSizeMap.set(rawSize, label);
+    }
+  });
+
+  const sortedEntries = Array.from(uniqueSizeMap.entries()).sort(([valA], [valB]) => {
+    return sortSizes(valA, valB, type);
+  });
+
+  sortedEntries.forEach(([sizeValue, labelText]) => {
+    const opt = document.createElement("option");
+    opt.value = sizeValue;
+    opt.textContent = labelText;
+    sizeSelect.appendChild(opt);
+  });
+}
+
+function onSizeChange(key, type) {
+  const sizeSelect = document.getElementById(`grid-size-${key}`);
+  const modelSelect = document.getElementById(`grid-model-${key}`);
+  if (!sizeSelect || !modelSelect) return;
+
+  const selectedSize = sizeSelect.value;
+  modelSelect.innerHTML = '<option value="">-- Marque / Modèle --</option>';
+
+  if (!selectedSize) {
+    modelSelect.innerHTML = '<option value="">-- Choisir Taille d\'abord --</option>';
+    updateMandatoryCounter();
+    return;
+  }
+
+  const isOverridden = overrideFilterMap.get(key) || false;
+  
+  // Utilisation de la même comparaison tolérante pour éviter les tableaux vides
+  let stock = (allInventoryCache || []).filter(item => 
+    String(item.type || "").trim().toLowerCase() === String(type || "").trim().toLowerCase() && 
+    item.statut === "en_stock"
+  );
+  
+  if (!isOverridden) {
+    const suggested = filterInventoryByRule(type, stock, currentAdherentC2);
+    if (suggested.length > 0) stock = suggested;
+  }
+
+  const matchingItems = stock.filter(i => {
+    const itemSize = String(i.taille || "Taille Unique").trim();
+    return itemSize === String(selectedSize).trim();
+  });
+  
+  const models = [...new Set(matchingItems.map(i => `${i.marque || ''} ${i.modele || ''}`.trim()))].filter(Boolean);
+
+  models.forEach(m => {
+    const opt = document.createElement("option");
+    opt.value = m;
+    opt.textContent = m;
+    modelSelect.appendChild(opt);
+  });
+
+  if (models.length === 1) {
+    modelSelect.value = models[0];
+  }
+
   updateMandatoryCounter();
 }
 
