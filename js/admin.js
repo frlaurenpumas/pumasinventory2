@@ -10,7 +10,7 @@ function importAdherentsCSV() {
     transformHeader: (h) => h.trim(),
     complete: async (results) => {
       for (const row of results.data) {
-        let rawDate = row["Date Naissance"] || row["DateNaissance"] || row["dateNaissance"] || row["Date de Naissance"] || "";
+        let rawDate = row["Date Naissance"] || row["DateNaissance"] || row["dateNaissance"] || row["Date de naissance"] || "";
         let formattedDate = formatDateToISO(rawDate);
         
         // Récupère la catégorie du CSV ou la calcule à partir de la date
