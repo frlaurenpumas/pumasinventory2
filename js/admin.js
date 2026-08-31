@@ -1,5 +1,11 @@
 // --- ADMIN / IMPORT & EXPORT CSV (PapaParse) ---
 
+function parseNum(val) {
+  if (val === undefined || val === null || val === "") return null;
+  const n = Number(String(val).replace(',', '.').trim());
+  return isNaN(n) ? null : n;
+}
+
 function importAdherentsCSV() {
   const fileInput = document.getElementById("csv-adh-file");
   if (!fileInput || !fileInput.files[0]) return alert("Veuillez choisir un fichier CSV.");
@@ -13,23 +19,26 @@ function importAdherentsCSV() {
         let rawDate = row["Date Naissance"] || row["DateNaissance"] || row["dateNaissance"] || row["Date de naissance"] || "";
         let formattedDate = formatDateToISO(rawDate);
         
-        // Récupère la catégorie du CSV ou la calcule à partir de la date
         let cat = row["Catégorie"] || row["Categorie"] || "";
         if (!cat && formattedDate) {
           cat = calculateCategory(formattedDate);
         }
 
+        // Nettoyage de la pointure (remplace 38,5 par 38.5)
+        let rawPointure = row["Pointure"] || row["pointure"] || "";
+        let cleanPointure = String(rawPointure).replace(',', '.').trim();
+
         const docRef = db.collection("adherents").doc();
         await docRef.set({
-          nom: row["Nom"] || "",
-          prenom: row["Prénom"] || "",
+          nom: row["Nom"] || row["nom"] || "",
+          prenom: row["Prénom"] || row["Prenom"] || row["prenom"] || "",
           dateNaissance: formattedDate,
           categorie: cat,
           email: row["Email"] || row["Adresse mail de contact"] || row["email"] || "",
-          tailleCm: Number(row["Taille (cm)"]) || null,
-          tourTeteCm: Number(row["Tour de tête (cm)"]) || null,
-          tailleMainInch: row["Taille Main(inch)"] || "",
-          pointure: row["Pointure"] || "",
+          tailleCm: parseNum(row["Taille (cm)"] || row["Taille"]),
+          tourTeteCm: parseNum(row["Tour de tête (cm)"] || row["Tour de tete"]),
+          tailleMainInch: row["Taille Main(inch)"] || row["Taille Main"] || "",
+          pointure: cleanPointure,
           statut: "Nouveau",
           importedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
@@ -65,8 +74,8 @@ function importInventoryCSV() {
 
   Papa.parse(fileInput.files[0], {
     header: true,
-    skipEmptyLines: "greedy", // Ignore les lignes vides ou remplies d'espaces
-    dynamicTyping: false,     // Conserve les types en String pour éviter les erreurs d'interprétation
+    skipEmptyLines: "greedy",
+    dynamicTyping: false,
     transformHeader: (h) => h.trim(),
     complete: async (results) => {
       let rows = results.data;
@@ -74,7 +83,6 @@ function importInventoryCSV() {
         return alert("Le fichier CSV est vide ou illisible.");
       }
 
-      // Filtrer les lignes vides (qui n'ont aucune clé avec du contenu)
       rows = rows.filter(row => Object.values(row).some(val => val && val.toString().trim() !== ""));
 
       if (rows.length === 0) {
@@ -82,7 +90,6 @@ function importInventoryCSV() {
       }
 
       console.log(`[DEBUG] Séparateur détecté: "${results.meta.delimiter}"`);
-      console.log(`[DEBUG] Début de l'import de ${rows.length} équipements...`, rows[0]);
 
       try {
         const BATCH_SIZE = 400;
@@ -92,7 +99,6 @@ function importInventoryCSV() {
           const batch = db.batch();
 
           chunk.forEach(row => {
-            // Helper pour récupérer la valeur d'une colonne peu importe sa casse ou ses accents
             const getVal = (...keys) => {
               for (const k of keys) {
                 if (row[k] !== undefined && row[k] !== null) return String(row[k]).trim();
@@ -104,18 +110,20 @@ function importInventoryCSV() {
             const typeVal = getVal("Equipement", "Équipement", "Type équipement", "Type equipement", "Type", "type");
             const marqueVal = getVal("Marque", "marque");
             const modeleVal = getVal("Modèle", "Modele", "modele");
-            const tailleVal = getVal("Taille", "taille");
+            
+            // Supporte "Taille" ou "Pointure" et transforme les virgules en points (ex: 38,5 -> 38.5)
+            const rawTaille = getVal("Taille", "taille", "Pointure", "pointure");
+            const tailleVal = rawTaille.replace(',', '.');
+
             const tailleConstructeurVal = getVal("Taille (selon constructeur)", "Taille constructeur", "Taille enfant", "Taille Enfant", "tailleEnfant");
             const provenanceVal = getVal("Provenance", "provenance") || "Import CSV";
             const statutVal = getVal("Statut", "statut") || "en_stock";
             const emailContactVal = getVal("Email Contact", "Email contact", "emailContact");
             const benevoleVal = getVal("Ajouté par (Bénévole)", "Ajouté par", "Bénévole", "createdByName", "createdByEmail");
 
-            // Conversion Taille Max (supporte la virgule décimale)
-            const rawTailleMax = getVal("Taille Max (cm)", "Taille Max", "Taille MAX", "tailleMax", "taille_max").replace(',', '.');
-            const parsedTailleMax = rawTailleMax !== "" ? Number(rawTailleMax) : null;
+            const rawTailleMax = getVal("Taille Max (cm)", "Taille Max", "Taille MAX", "tailleMax", "taille_max");
+            const parsedTailleMax = parseNum(rawTailleMax);
 
-            // Ne pas ajouter la ligne si le type est vide (ligne corrompue)
             if (!typeVal && !marqueVal && !modeleVal) return;
 
             const docRef = docId !== "" 
@@ -128,7 +136,7 @@ function importInventoryCSV() {
               modele: modeleVal,
               taille: tailleVal,
               tailleEnfant: tailleConstructeurVal,
-              tailleMax: parsedTailleMax !== null && !isNaN(parsedTailleMax) ? parsedTailleMax : null,
+              tailleMax: parsedTailleMax,
               provenance: provenanceVal,
               statut: statutVal,
               emailContact: emailContactVal,
@@ -146,7 +154,6 @@ function importInventoryCSV() {
         }
 
         alert(`✅ Importation réussie : ${rows.length} équipements traités.`);
-        
         fileInput.value = "";
 
         if (typeof loadInventory === "function") {
@@ -173,8 +180,8 @@ async function exportAdherentsCSV() {
       "Date Naissance": d.dateNaissance || "",
       "Catégorie": d.categorie || "",
       "Email": d.email || "",
-      "Taille (cm)": d.tailleCm || "",
-      "Tour de tête (cm)": d.tourTeteCm || "",
+      "Taille (cm)": d.tailleCm !== null && d.tailleCm !== undefined ? d.tailleCm : "",
+      "Tour de tête (cm)": d.tourTeteCm !== null && d.tourTeteCm !== undefined ? d.tourTeteCm : "",
       "Taille Main(inch)": d.tailleMainInch || "",
       "Pointure": d.pointure || "",
       "Statut": d.statut || ""
@@ -186,14 +193,12 @@ async function exportAdherentsCSV() {
 
 async function exportInventoryCSV() {
   try {
-    // 1. Récupération simultanée de l'inventaire, des prêts attribués et des adhérents
     const [eqSnapshot, loansSnapshot, adhSnapshot] = await Promise.all([
       db.collection("equipment").get(),
       db.collection("loans").where("statut", "==", "attribue").get(),
       db.collection("adherents").get()
     ]);
 
-    // Dictionnaires pour des recherches rapides O(1)
     const adherentsMap = {};
     adhSnapshot.forEach(doc => {
       adherentsMap[doc.id] = doc.data();
@@ -207,7 +212,6 @@ async function exportInventoryCSV() {
       }
     });
 
-    // 2. Construction des lignes pour le CSV (sans État, avec Bénévole)
     const data = eqSnapshot.docs.map(doc => {
       const d = doc.data();
       const isAttribue = d.statut === "attribue";
@@ -221,12 +225,12 @@ async function exportInventoryCSV() {
       }
 
       return {
-        "ID": doc.id,                             // Important pour la réimportation
+        "ID": doc.id,
         "Type": d.type || "",
         "Marque": d.marque || "",
         "Modèle": d.modele || "",
         "Taille": d.taille || "",
-        "Taille Max (cm)": d.tailleMax || "",
+        "Taille Max (cm)": d.tailleMax !== null && d.tailleMax !== undefined ? d.tailleMax : "",
         "Provenance": d.provenance || "",
         "Statut": d.statut || "en_stock",
         "Email Contact": emailContact,
@@ -234,13 +238,11 @@ async function exportInventoryCSV() {
       };
     });
 
-    // 3. Horodatage du fichier
     const now = new Date();
     const dateStr = now.toISOString().split("T")[0];
     const timeStr = `${String(now.getHours()).padStart(2, "0")}h${String(now.getMinutes()).padStart(2, "0")}`;
     const filename = `export_inventaire_materiel_${dateStr}_${timeStr}.csv`;
 
-    // Appel du téléchargeur PapaParse
     downloadCSV(data, filename);
   } catch (error) {
     console.error("Erreur lors de l'export de l'inventaire :", error);
@@ -248,27 +250,8 @@ async function exportInventoryCSV() {
   }
 }
 
-// Fonction utilitaire de téléchargement CSV avec PapaParse
-function downloadCSV(data, filename) {
-  if (!data || !data.length) {
-    alert("Aucune donnée à exporter.");
-    return;
-  }
-  
-  const csv = Papa.unparse(data, { delimiter: ";" });
-  const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
-  const link = document.createElement("a");
-  const url = URL.createObjectURL(blob);
-  
-  link.setAttribute("href", url);
-  link.setAttribute("download", filename);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-}
-
-// Export au scope global
 window.exportInventoryCSV = exportInventoryCSV;
+
 async function exportLoansCSV() {
   try {
     const [loansSnapshot, adhSnapshot] = await Promise.all([
@@ -281,18 +264,15 @@ async function exportLoansCSV() {
       adherentsMap[doc.id] = doc.data();
     });
 
-const data = loansSnapshot.docs.map(doc => {
+    const data = loansSnapshot.docs.map(doc => {
       const d = doc.data();
 
-      // Recours à la map d'adhérents si les champs ne sont pas dénormalisés (anciens prêts)
       const fallbackAdh = adherentsMap[d.adhId] || {};
       const nom = d.adhNom || fallbackAdh.nom || "N/C";
       const prenom = d.adhPrenom || fallbackAdh.prenom || "N/C";
       const categorie = d.adhCategorie || fallbackAdh.categorie || "N/C";
 
-      // Informations du bénévole (avec fallback si ancien prêt sans l'info)
-      const benevoleNom = d.benevoleName || "N/C";
-      const benevoleEmail = d.benevoleEmail || "N/C";
+      const benevoleEmail = d.benevoleEmail || d.benevoleName || "N/C";
 
       const dateRemise = d.dateRemise && typeof d.dateRemise.toDate === 'function' 
         ? d.dateRemise.toDate().toLocaleDateString("fr-FR") 
@@ -318,7 +298,7 @@ const data = loansSnapshot.docs.map(doc => {
         "ID Adhérent (Technique)": d.adhId || "",
         "ID Équipement (Technique)": d.eqId || ""
       };
-  });
+    });
 
     if (data.length === 0) {
       return alert("Aucun prêt à exporter.");
@@ -335,9 +315,9 @@ const data = loansSnapshot.docs.map(doc => {
   }
 }
 
+// Fonction unique utilitaire de téléchargement CSV
 function downloadCSV(data, filename) {
   const csv = Papa.unparse(data, { delimiter: ";" });
-  // Le préfixe \uFEFF force Excel à lire correctement l'UTF-8 avec les accents
   const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
