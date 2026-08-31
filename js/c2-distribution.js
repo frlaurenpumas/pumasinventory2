@@ -1,9 +1,8 @@
-// --- COMPTOIR 2 : DISTRIBUTION & ÉCHANGES (V3 Cleaned & Securised) ---
+// --- COMPTOIR 2 : DISTRIBUTION & ÉCHANGES (V3.1 Fixed) ---
 
 const overrideFilterMap = new Map();
-let unsubscribeAssignedEquipment = null; // Pour stopper l'écoute du précédent adhérent
+let unsubscribeAssignedEquipment = null;
 
-// --- INITIALISATION AUTOMATIQUE DE LA FILE D'ATTENTE ---
 function listenToQueueC2() {
   db.collection("adherents")
     .where("statut", "==", "En attente de matériel")
@@ -17,7 +16,6 @@ function listenToQueueC2() {
         const li = document.createElement("li");
         li.className = `queue-item ${currentAdherentC2 && currentAdherentC2.id === adh.id ? 'active' : ''}`;
         
-        // Sécurisation contre nom/prénom indéfinis
         const nomUpper = (adh.nom || '').toUpperCase();
         const prenomStr = adh.prenom || '';
         
@@ -28,13 +26,11 @@ function listenToQueueC2() {
     });
 }
 
-// Lancement direct de l'écouteur de la file d'attente
 listenToQueueC2();
 
 function listenToAssignedEquipment(adhId) {
   if (!adhId) return;
 
-  // On stoppe l'écoute précédente si elle existe
   if (unsubscribeAssignedEquipment) {
     unsubscribeAssignedEquipment();
   }
@@ -116,7 +112,6 @@ async function loadInventory() {
   allInventoryCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
-// --- BANDEAU RECAPITULATIF DE STOCK ---
 function renderStockSummaryBandeau() {
   const container = document.getElementById("c2-stock-badges");
   if (!container || !currentAdherentC2) return;
@@ -152,7 +147,6 @@ function renderStockSummaryBandeau() {
   });
 }
 
-// --- TRI INTELLIGENT DES TAILLES DANS LES MENUS DÉROULANTS ---
 function sortSizes(sizeA, sizeB, type) {
   const strA = String(sizeA || "").trim().toUpperCase();
   const strB = String(sizeB || "").trim().toUpperCase();
@@ -243,9 +237,14 @@ function filterInventoryByRule(type, items, adh) {
 
     case "PATINS": {
       if (!adh.pointure) return items;
+      // Normalisation des pointures (remplacement de la virgule par un point)
+      const adhPointureClean = String(adh.pointure).trim().replace(',', '.');
       result = items.filter(item => {
-        if (item.pointure) return String(item.pointure).trim() === String(adh.pointure).trim();
-        return String(item.taille || "").trim() === String(adh.pointure).trim();
+        const itemPointureClean = String(item.pointure || "").trim().replace(',', '.');
+        const itemTailleClean = String(item.taille || "").trim().replace(',', '.');
+        
+        if (item.pointure) return itemPointureClean === adhPointureClean;
+        return itemTailleClean === adhPointureClean;
       });
       break;
     }
@@ -299,7 +298,6 @@ function getFormattedMeasure(type, adh) {
   }
 }
 
-// --- GRILLE D'ATTRIBUTION ---
 function renderGridSection(equipmentList, containerId, isMandatory) {
   const tbody = document.getElementById(containerId);
   if (!tbody) return;
@@ -426,8 +424,6 @@ function populateSizesFirst(key, type, stockItems) {
     const rawSize = String(item.taille || "Taille Unique").trim();
     const tMax = item.tailleMax ? String(item.tailleMax).trim() : "";
     
-    // Si une taille MAX existe, on crée une clé composite unique (ex: "YT-M|120")
-    // Cela évite qu'un YT-M (130cm) n'écrase un YT-M (120cm)
     const compositeKey = tMax ? `${rawSize}|${tMax}` : rawSize;
 
     let label = rawSize;
@@ -448,7 +444,7 @@ function populateSizesFirst(key, type, stockItems) {
 
   sortedEntries.forEach(item => {
     const opt = document.createElement("option");
-    opt.value = item.sizeValue; // Stocke "YT-M|120" ou "YT-M"
+    opt.value = item.sizeValue;
     opt.textContent = item.labelText;
     sizeSelect.appendChild(opt);
   });
@@ -468,7 +464,6 @@ function onSizeChange(key, type) {
     return;
   }
 
-  // Décomposition de la clé composite (ex: "YT-M|120" -> rawSize = "YT-M", targetTMax = "120")
   const [selectedSize, selectedTMax] = selectedValue.split("|");
 
   const isOverridden = overrideFilterMap.get(key) || false;
@@ -483,7 +478,6 @@ function onSizeChange(key, type) {
     if (suggested.length > 0) stock = suggested;
   }
 
-  // Filtrage précis : correspond à la taille ET à la taille MAX (si présente)
   const matchingItems = stock.filter(i => {
     const itemSize = String(i.taille || "Taille Unique").trim();
     const itemTMax = i.tailleMax ? String(i.tailleMax).trim() : "";
@@ -530,6 +524,7 @@ function onSizeChange(key, type) {
 
   updateMandatoryCounter();
 }
+
 function onGridChange(key) {
   updateMandatoryCounter();
 }
@@ -551,6 +546,7 @@ function updateMandatoryCounter() {
   }
 }
 
+// --- FONCTION CORRIGÉE POUR L'ATTRIBUTION ---
 async function assignAllEquipment(e) {
   if (e) e.preventDefault();
   if (!currentAdherentC2) return;
@@ -569,14 +565,23 @@ async function assignAllEquipment(e) {
 
     if (modelSelect && sizeSelect && modelSelect.value && sizeSelect.value) {
       const selectedModel = modelSelect.value;
-      const selectedSize = sizeSelect.value;
+      const rawSelectedSizeValue = sizeSelect.value;
+
+      // FIX : Extraction de la taille réelle sans la partie "|tailleMax"
+      const [selectedSize, selectedTMax] = rawSelectedSizeValue.split("|");
 
       const itemToAssign = allInventoryCache.find(eq => {
         const itemModel = `${eq.marque || ''} ${eq.modele || ''}`.trim();
-        return String(eq.type || "").trim().toLowerCase() === String(itemConfig.type || "").trim().toLowerCase() &&
-               itemModel === selectedModel &&
-               String(eq.taille || "Taille Unique").trim() === String(selectedSize).trim() &&
-               eq.statut === "en_stock";
+        const itemSize = String(eq.taille || "Taille Unique").trim();
+        const itemTMax = eq.tailleMax ? String(eq.tailleMax).trim() : "";
+
+        const matchesType = String(eq.type || "").trim().toLowerCase() === String(itemConfig.type || "").trim().toLowerCase();
+        const matchesModel = itemModel === selectedModel;
+        const matchesSize = itemSize === selectedSize;
+        const matchesTMax = selectedTMax ? itemTMax === selectedTMax : true;
+        const matchesStatut = eq.statut === "en_stock";
+
+        return matchesType && matchesModel && matchesSize && matchesTMax && matchesStatut;
       });
 
       if (itemToAssign) {
@@ -633,7 +638,6 @@ async function assignAllEquipment(e) {
   }
 }
 
-// --- RESTITUTION ET ÉCHANGE DE MATÉRIEL ---
 async function returnEquipment(loanId, equipmentId) {
   if (!confirm("Voulez-vous vraiment restituer cet équipement ?")) return;
 
