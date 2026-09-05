@@ -115,7 +115,15 @@ function importInventoryCSV() {
             const rawTaille = getVal("Taille", "taille", "Pointure", "pointure");
             const tailleVal = rawTaille.replace(',', '.');
 
-            const tailleConstructeurVal = getVal("Taille (selon constructeur)", "Taille constructeur", "Taille enfant", "Taille Enfant", "tailleEnfant");
+            // Alignement parfait avec l'export ("Taille Enfant" placé en priorité)
+            const tailleConstructeurVal = getVal(
+              "Taille Enfant", 
+              "Taille enfant", 
+              "Taille (selon constructeur)", 
+              "Taille constructeur", 
+              "tailleEnfant"
+            );
+            
             const provenanceVal = getVal("Provenance", "provenance") || "Import CSV";
             const statutVal = getVal("Statut", "statut") || "en_stock";
             const emailContactVal = getVal("Email Contact", "Email contact", "emailContact");
@@ -230,6 +238,7 @@ async function exportInventoryCSV() {
         "Marque": d.marque || "",
         "Modèle": d.modele || "",
         "Taille": d.taille || "",
+        "Taille Enfant": d.tailleEnfant || "", // <-- Ajout de la colonne pour préserver la donnée au re-import
         "Taille Max (cm)": d.tailleMax !== null && d.tailleMax !== undefined ? d.tailleMax : "",
         "Provenance": d.provenance || "",
         "Statut": d.statut || "en_stock",
@@ -251,6 +260,7 @@ async function exportInventoryCSV() {
 }
 
 window.exportInventoryCSV = exportInventoryCSV;
+
 
 async function exportLoansCSV() {
   try {
