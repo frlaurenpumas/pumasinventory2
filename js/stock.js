@@ -1,3 +1,4 @@
+console.log("✅ [DEBUG] Le fichier js/stock.js a bien été chargé.");
 /**
  * js/stock.js
  * Gestion de l'affichage, du filtrage et de la vue temps réel du stock d'équipements.
