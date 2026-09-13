@@ -19,6 +19,7 @@ document.addEventListener("DOMContentLoaded", () => {
  * Initialise l'affichage de l'onglet Stock
  */
 function initStockView() {
+  console.log("🚀 [DEBUG] Appels de initStockView()");
   loadStockData();
 }
 
