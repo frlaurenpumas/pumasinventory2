@@ -26,6 +26,7 @@
   <script src="js/c1-accueil.js" defer></script>
   <script src="js/c2-distribution.js" defer></script>
   <script src="js/reassort.js" defer></script>
+  <script src="js/stock.js" defer></script>
   <script src="js/admin.js" defer></script>
 
   <!-- 4. Orchestrateur principal (toujours en dernier) -->
@@ -41,6 +42,7 @@
     <nav class="tabs-nav">
       <button class="tab-btn active" data-tab="comptoir1">1er Comptoir</button>
       <button class="tab-btn" data-tab="comptoir2">2ème Comptoir</button>
+      <button class="tab-btn" data-tab="stock">📦 État du Stock</button>
       <button class="tab-btn" data-tab="reassort">➕ Réassort</button>
       <button class="tab-btn" data-tab="admin">Admin / Export</button>
     </nav>
@@ -273,6 +275,82 @@
           <div class="actions-footer mt-3" style="text-align: right;">
             <button type="button" class="btn btn-success" onclick="closeRemiseSession()">Clôturer la remise</button>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ÉTAT DU STOCK -->
+    <section id="stock" class="tab-content">
+      <h2>📦 État & Inventaire du Stock</h2>
+
+      <!-- INDICATEURS CLÉS (KPIS) -->
+      <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+        <div class="card" style="flex: 1; min-width: 180px; padding: 15px; text-align: center;">
+          <div style="font-size: 24px; font-weight: bold; color: #0284c7;" id="stock-kpi-total">0</div>
+          <div style="color: #64748b; font-size: 14px;">Total Équipements</div>
+        </div>
+        <div class="card" style="flex: 1; min-width: 180px; padding: 15px; text-align: center;">
+          <div style="font-size: 24px; font-weight: bold; color: #16a34a;" id="stock-kpi-dispo">0</div>
+          <div style="color: #64748b; font-size: 14px;">Disponible(s)</div>
+        </div>
+        <div class="card" style="flex: 1; min-width: 180px; padding: 15px; text-align: center;">
+          <div style="font-size: 24px; font-weight: bold; color: #ea580c;" id="stock-kpi-prete">0</div>
+          <div style="color: #64748b; font-size: 14px;">Prêté(s)</div>
+        </div>
+      </div>
+
+      <!-- FILTRES DE RECHERCHE -->
+      <div class="card" style="margin-bottom: 20px; padding: 15px;">
+        <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; align-items: flex-end;">
+          <div class="form-group" style="margin: 0;">
+            <label for="stock-filter-search">Recherche libre</label>
+            <input type="text" id="stock-filter-search" placeholder="Marque, modèle, ID..." oninput="filterStockTable()">
+          </div>
+
+          <div class="form-group" style="margin: 0;">
+            <label for="stock-filter-type">Type d'équipement</label>
+            <select id="stock-filter-type" onchange="filterStockTable()">
+              <option value="">Tous les types</option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin: 0;">
+            <label for="stock-filter-statut">Statut</label>
+            <select id="stock-filter-statut" onchange="filterStockTable()">
+              <option value="">Tous les statuts</option>
+              <option value="disponible">Disponible</option>
+              <option value="prete">Prêté</option>
+              <option value="hors_service">Hors Service / Autre</option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin: 0;">
+            <button type="button" class="btn btn-secondary" onclick="resetStockFilters()" style="width: 100%;">Réinitialiser filtres</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TABLEAU DES ÉQUIPEMENTS -->
+      <div class="card" style="padding: 15px;">
+        <div class="table-container" style="max-height: 600px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px;">
+          <table class="data-table" style="width: 100%;">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Marque / Modèle</th>
+                <th>Taille</th>
+                <th>Taille Enfant</th>
+                <th>Taille Max (cm)</th>
+                <th>Statut</th>
+                <th>Emprunteur / Provenance</th>
+              </tr>
+            </thead>
+            <tbody id="stock-table-body">
+              <tr>
+                <td colspan="7" style="text-align: center; color: #64748b; padding: 20px;">Chargement des données du stock...</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </section>
